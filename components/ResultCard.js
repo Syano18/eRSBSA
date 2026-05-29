@@ -29,11 +29,11 @@ export default function ResultCard({ query, rows = [], loading = false, error = 
     }
   }
 
-  // --- NEW CLIENT-SIDE PDF GENERATOR ---
-  const handleDownloadPDF = async (row) => {
+  // --- NEW CLIENT-SIDE IMAGE GENERATOR ---
+  const handleDownloadImage = async (row) => {
     try {
-      // 1. Dynamically import html2pdf strictly on the client side
-      const html2pdf = (await import('html2pdf.js')).default
+      // 1. Dynamically import html2canvas strictly on the client side
+      const html2canvas = (await import('html2canvas')).default
 
       // 2. Format the specific row data
       const rowFullName = [getRowValue(row, 'first_name'), getRowValue(row, 'middle_initial'), getRowValue(row, 'last_name')]
@@ -44,14 +44,17 @@ export default function ResultCard({ query, rows = [], loading = false, error = 
       // 3. Create an invisible HTML element in memory to act as our template
       const element = document.createElement('div')
       element.style.width = '695px'
+      element.style.padding = '40px'
+      element.style.backgroundColor = '#ffffff' // Ensure image has a solid white background
       element.style.fontFamily = 'Helvetica, Arial, sans-serif'
       element.style.color = '#000'
-      // NEW: Set position relative so the absolute watermark stays perfectly centered inside it
-      element.style.position = 'relative' 
+      // Position off-screen so it doesn't disrupt the user's view while rendering
+      element.style.position = 'absolute'
+      element.style.left = '-9999px'
+      element.style.top = '-9999px'
 
       // 4. Inject the data into the HTML structure
       element.innerHTML = `
-
         <div style="display: flex; align-items: center; padding-bottom: 10px; margin-bottom: 20px;">
           <img src="/DA.png" alt="DA Logo" style="width: 60px; height: 60px; margin-right: 15px;" />
           <div>
@@ -109,21 +112,27 @@ export default function ResultCard({ query, rows = [], loading = false, error = 
         </div>
       `
 
-      // 5. Configure PDF settings
-      const opt = {
-        margin: 0.5,
-        filename: `RSBSA_${getRowValue(row, 'ref_no', 'record')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'in', format: 'A4', orientation: 'portrait' }
-      }
+      // 5. Append to body so html2canvas can properly calculate styles and auto-height
+      document.body.appendChild(element)
 
-      // 6. Generate and save the PDF directly in the browser
-      html2pdf().set(opt).from(element).save()
+      // 6. Generate the canvas from the HTML element
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true })
+      
+      // Clean up the DOM
+      document.body.removeChild(element)
+
+      // 7. Convert to image and trigger download
+      const imgData = canvas.toDataURL('image/jpeg', 0.98)
+      const link = document.createElement('a')
+      link.href = imgData
+      link.download = `RSBSA_${getRowValue(row, 'ref_no', 'record')}.jpg`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
 
     } catch (err) {
-      console.error('PDF generation error:', err)
-      alert('Failed to generate PDF. Please try again.')
+      console.error('Image generation error:', err)
+      alert('Failed to generate Image. Please try again.')
     }
   }
 
@@ -162,8 +171,8 @@ export default function ResultCard({ query, rows = [], loading = false, error = 
                 <button
                   type="button"
                   className="download-btn"
-                  onClick={() => handleDownloadPDF(r)}
-                  aria-label="Download record as PDF"
+                  onClick={() => handleDownloadImage(r)}
+                  aria-label="Download record as Image"
                 >
                   📥 Download Record
                 </button>

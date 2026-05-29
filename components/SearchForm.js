@@ -117,6 +117,7 @@ export default function SearchForm({ onSearch }) {
               onBlur={onMiddleInitialBlur}
               placeholder="D."
               maxLength={10}
+              required
             />
           </label>
 
