@@ -4,27 +4,56 @@ import Head from 'next/head'
 export default function AdminDashboard() {
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
-  const [formData, setFormData] = useState({})
-  const [csvPreview, setCsvPreview] = useState(null)
 
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loginError, setLoginError] = useState(false)
 
-  const barangays = [
-    'Agbannawag','Amlao','Appas','Bado Dangwa','Bagumbayan','Balawag','Balong','Bantay','Bulanao Centro','Bulanao Norte','Bulo','Cabaritan','Cabaruan','Calaccad','Calanan','Casigayan','Cudal','Dagupan Centro','Dagupan Weste','Dilag','Dupag','Gobgob','Guilayon','Ipil','Lacnog','Lacnog West','Lanna','Laya East','Laya West','Lucog','Magnao','Magsaysay','Malalao','Malin-awa','Masablang','Nambaran','Nambucayan','Naneng','New Tanglag','San Juan','San Julian','Suyang','Tuga'
-  ]
-  const [showDropdown, setShowDropdown] = useState(false)
-  const [highlightIndex, setHighlightIndex] = useState(-1)
-  const wrapperRef = useRef(null)
-  const fileInputRef = useRef(null)
+  const [selectedRecord, setSelectedRecord] = useState(null)
+  const [reviewForm, setReviewForm] = useState({
+    refNo: '',
+    parcels: [{
+      gpxFileName: '',
+      landTenure: '',
+      parcelName: '',
+      crop: '',
+      plantingSchedule: '',
+      declaredSize: '',
+      verifiedSize: '',
+      remarks: ''
+    }]
+  })
+
+  const [notification, setNotification] = useState(null)
+  const [previewImages, setPreviewImages] = useState(null)
+  const [isSending, setIsSending] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+
+  const [activeDropdownIndex, setActiveDropdownIndex] = useState(null)
+  const [dropdownHighlightIndex, setDropdownHighlightIndex] = useState(-1)
+  const dropdownRef = useRef(null)
+  const landTenureOptions = ['Registered Owner', 'Tenant', 'Mortgage', 'Lessee']
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (activeDropdownIndex !== null && dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setActiveDropdownIndex(null)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    document.addEventListener('touchstart', handleOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('touchstart', handleOutside)
+    }
+  }, [activeDropdownIndex])
 
   useEffect(() => {
     // Check for stored token on initial load
     const storedToken = localStorage.getItem('adminToken')
-    const expectedToken = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin123'
-    if (storedToken === expectedToken) {
+    if (storedToken && storedToken.length > 20) { // Simple check to see if it looks like a JWT
       setIsAuthenticated(true)
     }
   }, [])
@@ -54,98 +83,30 @@ export default function AdminDashboard() {
     }
   }, [isAuthenticated])
 
-  const handleEdit = (record) => {
-    setFormData(record)
-    setShowModal(true)
-  }
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this record? This action cannot be undone.')) return
-    try {
-      await fetch(`/api/records?id=${id}`, { method: 'DELETE', headers: getAuthHeaders() })
-      fetchRecords() // Refresh the list
-    } catch (err) {
-      console.error('Failed to delete record:', err)
-    }
-  }
-
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
-    const method = formData.id ? 'PUT' : 'POST'
-    
+    setLoginError(false)
+
     try {
-      const res = await fetch('/api/records', {
-        method,
-        headers: getAuthHeaders(),
-        body: JSON.stringify(formData)
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
       })
-      const data = await res.json()
+
       if (!res.ok) {
-        return alert(data.error || 'Error saving record.')
+        throw new Error('Invalid credentials')
       }
-      setShowModal(false)
-      setFormData({})
-      fetchRecords() // Refresh the list
+
+      const data = await res.json()
+      if (data.success && data.token) {
+        localStorage.setItem('adminToken', data.token)
+        setIsAuthenticated(true)
+      } else {
+        setLoginError(true)
+      }
     } catch (err) {
-      console.error('Failed to save record:', err)
-      alert('Error saving record. Please try again.')
-    }
-  }
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
-  }
-
-  useEffect(() => {
-    const handleOutside = (e) => {
-      if (showDropdown && wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setShowDropdown(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleOutside)
-    document.addEventListener('touchstart', handleOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleOutside)
-      document.removeEventListener('touchstart', handleOutside)
-    }
-  }, [showDropdown])
-
-  const filteredBarangays = barangays.filter((b) => b.toLowerCase().includes((formData.barangay || '').toLowerCase()))
-
-  const selectBarangay = (val) => {
-    setFormData({ ...formData, barangay: val })
-    setShowDropdown(false)
-    setHighlightIndex(-1)
-  }
-
-  const handleKeyDown = (e) => {
-    if (!showDropdown) return
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setHighlightIndex((i) => Math.min(i + 1, filteredBarangays.length - 1))
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setHighlightIndex((i) => Math.max(i - 1, 0))
-    } else if (e.key === 'Enter') {
-      e.preventDefault()
-      if (highlightIndex >= 0 && highlightIndex < filteredBarangays.length) {
-        selectBarangay(filteredBarangays[highlightIndex])
-      }
-    } else if (e.key === 'Escape') {
-      setShowDropdown(false)
-    }
-  }
-
-  const handleLogin = (e) => {
-    e.preventDefault()
-    // Check environment variable or fallback to default password
-    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin123'
-    if (password === adminPassword) {
-      localStorage.setItem('adminToken', password)
-      setIsAuthenticated(true)
-      setLoginError(false)
-    } else {
+      console.error('Login error:', err)
       setLoginError(true)
     }
   }
@@ -153,317 +114,778 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     localStorage.removeItem('adminToken')
     setIsAuthenticated(false)
+    setUsername('')
     setPassword('')
   }
 
-  const handleDownloadTemplate = () => {
-    const headers = "ref_no,first_name,middle_initial,last_name,barangay,crop,planting_schedule,declared_size,verified_size,remarks,gpx_file_name\n"
-    const blob = new Blob([headers], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'RSBSA_Import_Template.csv'
-    a.click()
-    window.URL.revokeObjectURL(url)
-  }
-
-  const parseCSVLine = (text) => {
-    let ret = [], col = '', inQuote = false;
-    for (let i = 0; i < text.length; i++) {
-      let char = text[i];
-      if (inQuote) {
-        if (char === '"') {
-          if (text[i + 1] === '"') { col += '"'; i++; } else { inQuote = false; }
-        } else { col += char; }
-      } else {
-        if (char === '"') { inQuote = true; }
-        else if (char === ',') { ret.push(col.trim()); col = ''; }
-        else { col += char; }
-      }
-    }
-    ret.push(col.trim());
-    return ret;
-  }
-
-  const handleImportCSV = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = async (event) => {
-      const text = event.target.result
-      const lines = text.split(/\r?\n/).filter(line => line.trim())
-      if (lines.length < 2) return alert('CSV file is empty or only contains headers.')
-
-      const headers = parseCSVLine(lines[0])
-      const records = lines.slice(1).map(line => {
-        const values = parseCSVLine(line)
-        return headers.reduce((obj, header, index) => {
-          obj[header] = values[index] !== undefined ? values[index] : ''
-          return obj
-        }, {})
-      })
-
-      try {
-        const res = await fetch('/api/records?preview=true', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(records) })
-        const data = await res.json()
-        if (!res.ok) {
-          return alert(data.error || 'Error reading CSV for preview.')
-        }
-        setCsvPreview(data.previewRecords)
-      } catch (err) {
-        alert('Error analyzing CSV. Ensure fields match the template correctly.')
-      } finally {
-        e.target.value = null
-      }
-    }
-    reader.readAsText(file)
-  }
-
-  const handleConfirmImport = async () => {
-    const validRecords = csvPreview.filter(r => !r._isDuplicate).map(r => {
-      const copy = { ...r }
-      delete copy._isDuplicate
-      return copy
+  const handleReview = (record) => {
+    setSelectedRecord(record)
+    setReviewForm({
+      refNo: '',
+      parcels: [{
+        gpxFileName: '',
+        landTenure: '',
+        parcelName: '',
+        crop: '',
+        plantingSchedule: '',
+        declaredSize: '',
+        verifiedSize: '',
+        remarks: ''
+      }]
     })
+  }
 
-    if (validRecords.length === 0) {
-      alert('No valid records to import. All entries are duplicates.')
-      setCsvPreview(null)
-      return
+  const handleReviewChange = (e) => {
+    const { name, value } = e.target
+    setReviewForm(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleParcelChange = (index, e) => {
+    const { name, value } = e.target
+    setReviewForm(prev => {
+      const newParcels = [...prev.parcels]
+      newParcels[index] = { ...newParcels[index], [name]: value }
+      return { ...prev, parcels: newParcels }
+    })
+  }
+
+  const handleParcelDecimalBlur = (index, e) => {
+    const { name, value } = e.target
+    if (value !== '' && !isNaN(value)) {
+      setReviewForm(prev => {
+        const newParcels = [...prev.parcels]
+        newParcels[index] = { ...newParcels[index], [name]: parseFloat(value).toFixed(2) }
+        return { ...prev, parcels: newParcels }
+      })
     }
+  }
+
+  const addParcel = () => {
+    const lastIndex = reviewForm.parcels.length - 1
+
+    const requiredFields = ['gpxFileName', 'landTenure', 'parcelName', 'crop', 'plantingSchedule', 'declaredSize', 'verifiedSize']
+    for (const field of requiredFields) {
+      const el = document.getElementById(`parcel-${lastIndex}-${field}`)
+      if (el && !el.checkValidity()) {
+        el.reportValidity()
+        return
+      }
+    }
+    setReviewForm(prev => ({
+      ...prev,
+      parcels: [...prev.parcels, { gpxFileName: '', landTenure: '', parcelName: '', crop: '', plantingSchedule: '', declaredSize: '', verifiedSize: '', remarks: '' }]
+    }))
+  }
+
+  const removeParcel = (index) => {
+    setReviewForm(prev => ({
+      ...prev,
+      parcels: prev.parcels.filter((_, i) => i !== index)
+    }))
+  }
+
+  const handleGenerate = async (e) => {
+    e.preventDefault()
+    setIsGenerating(true)
 
     try {
-      const res = await fetch('/api/records', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(validRecords) })
-      const data = await res.json()
-      if (!res.ok) {
-        return alert(data.error || 'Error importing CSV.')
+      const html2canvas = (await import('html2canvas')).default
+
+      const rowFullName = [selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name].filter(Boolean).join(' ')
+      const rowAddress = [selectedRecord.barangay, selectedRecord.city, selectedRecord.province, selectedRecord.region].filter(Boolean).join(', ')
+      const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+
+      const container = document.createElement('div')
+      container.style.position = 'absolute'
+      container.style.left = '-9999px'
+      container.style.top = '-9999px'
+      container.style.overflow = 'hidden'
+      container.style.display = 'flex'
+      container.style.flexDirection = 'column'
+      container.style.gap = '40px'
+      container.style.width = '794px' // A4 standard width
+
+      const setupPageElement = () => {
+        const el = document.createElement('div')
+        el.style.padding = '40px'
+        el.style.boxSizing = 'border-box'
+        el.style.backgroundColor = '#ffffff'
+        el.style.fontFamily = 'Helvetica, Arial, sans-serif'
+        el.style.color = '#000'
+        return el
       }
-      alert(`Successfully imported ${data.count} records.`)
-      setCsvPreview(null)
-      fetchRecords()
+
+      const ocasElement = setupPageElement()
+      ocasElement.innerHTML = `
+        <div style="border: 1px solid #000; padding: 40px; display: flex; flex-direction: column; position: relative; background: #fff;">
+          <!-- FIELD ASSISTANT LOGBOOK -->
+          <div style="position: relative; display: flex; flex-direction: column;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.12; pointer-events: none; z-index: 0;">
+              <img src="/DA.png" alt="DA Watermark" style="width: 300px; height: 300px; object-fit: contain;" />
+            </div>
+            <div style="position: relative; z-index: 1; display: flex; flex-direction: column;">
+              <div style="text-align: center; margin-bottom: 20px; font-family: serif;">
+              <div style="font-weight: bold; font-size: 16px;">FIELD ASSISTANT LOGBOOK</div>
+              <div style="font-size: 14px;">FA Code: __________________</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 10px;">
+              <div>Contact No.: 09</div>
+              <div style="display: flex; align-items: flex-end;">
+                <span style="white-space: nowrap; margin-right: 5px;">Date:</span>
+                <span style="border-bottom: 1px solid #000; min-width: 150px; text-align: center;">${currentDate}</span>
+              </div>
+            </div>
+            <div style="font-size: 14px; margin-bottom: 15px; display: flex;">
+              <span style="white-space: nowrap; margin-right: 5px;">Farmer's Address:</span>
+              <span style="flex: 1; border-bottom: 1px solid #000;">${rowAddress || ''}</span>
+            </div>
+            
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: center; margin-bottom: 15px;">
+              <thead>
+                <tr>
+                  <th style="border: 1px solid #000; padding: 8px; width: 15%;">GPX ID NUMBER</th>
+                  <th style="border: 1px solid #000; padding: 8px; width: 10%;">LAND<br/>TENURE</th>
+                  <th style="border: 1px solid #000; padding: 8px; width: 25%;">PARCEL NAME/<br/>LAND OWNER</th>
+                  <th style="border: 1px solid #000; padding: 8px; width: 15%;">CROP</th>
+                  <th style="border: 1px solid #000; padding: 8px; width: 10%;">DECLARED<br/>SIZE</th>
+                  <th style="border: 1px solid #000; padding: 8px; width: 10%;">VERIFIED<br/>SIZE</th>
+                  <th style="border: 1px solid #000; padding: 8px; width: 15%;">REMARKS</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${reviewForm.parcels.map(p => `
+                <tr>
+                  <td style="border: 1px solid #000; padding: 6px;">${p.gpxFileName}</td>
+                  <td style="border: 1px solid #000; padding: 6px;">${p.landTenure}</td>
+                  <td style="border: 1px solid #000; padding: 6px;">${p.parcelName}</td>
+                  <td style="border: 1px solid #000; padding: 6px;">${p.crop}</td>
+                  <td style="border: 1px solid #000; padding: 6px;">${p.declaredSize}</td>
+                  <td style="border: 1px solid #000; padding: 6px;">${p.verifiedSize}</td>
+                  <td style="border: 1px solid #000; padding: 6px;">${p.remarks}</td>
+                </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            
+            <div style="text-align: center; font-size: 12px; margin-bottom: 25px;">
+              By signing it, I hereby certify that I give consent to the data gathering and attest that all information<br/>is true and correct.
+            </div>
+            
+            <div style="display: flex; justify-content: space-around; font-size: 12px; margin-bottom: 0;">
+              <div style="text-align: center; width: 40%;">
+                <div style="border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px;"></div>
+                <div>Farmer's Signature over Printed Name</div>
+              </div>
+              <div style="text-align: center; width: 40%;">
+                <div style="border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;">
+                  <img src="/Head.png" alt="AEW Signature" style="width: 190px; height: auto; max-width: none; margin-top: -20px; margin-bottom: -5px; position: relative; z-index: 10;" />
+                </div>
+                <div>AEW's Signature over Printed Name</div>
+              </div>
+            </div>
+            </div>
+          </div>
+
+          <div style="border-bottom: 1px solid #000; margin: 30px -40px 30px -40px;"></div>
+
+          <!-- RSBSA COPY -->
+          <div style="position: relative; flex: 1; display: flex; flex-direction: column;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.12; pointer-events: none; z-index: 0;">
+              <img src="/DA.png" alt="DA Watermark" style="width: 300px; height: 300px; object-fit: contain;" />
+            </div>
+            <div style="position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center;">
+                  <img src="/DA.png" alt="DA Logo" style="width: 40px; height: 40px; margin-right: 10px;" />
+                  <div>
+                    <h1 style="margin: 0; font-size: 16px; font-weight: normal;">Department of Agriculture</h1>
+                    <p style="margin: 0; font-size: 14px; font-weight: bold;">Registry System for Basic Sectors in Agriculture (RSBSA)</p>
+                  </div>
+                </div>
+                <div style="border: 1px solid blue; color: blue; width: 220px; padding: 5px; display: flex; align-items: center; box-sizing: border-box;">
+                  <img src="/DA.png" alt="DA Logo" style="width: 36px; height: 36px; margin-right: 8px;" />
+                  <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                    <img src="/Head.png" alt="Head Signature" style="width: 160px; height: auto; max-width: none; margin-top: -20px; margin-bottom: -5px; position: relative; z-index: 10;" />
+                    <div style="width: 100%; font-size: 9px; display: flex; flex-direction: column;">
+                      <div style="border-top: 1px solid blue; border-bottom: 1px solid blue; text-align: center; padding-top: 2px; padding-bottom: 2px; margin-bottom: 2px;">
+                        <div style="margin-bottom: 15px;">CERTIFIED BY:</div>
+                        <div style="color: #000; font-size: 14px;">${currentDate}</div>
+                      </div>
+                      <div style="text-align: center;">DATE</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <table style="width: 100%; margin-bottom: 20px; font-size: 14px; border-collapse: separate; border-spacing: 0 8px;">
+                <tbody>
+                  <tr>
+                    <td style="width: 1%; white-space: nowrap;">Name:</td>
+                    <td style="border-bottom: 1px solid #000; padding-left: 10px;">${rowFullName || ''}</td>
+                  </tr>
+                  <tr>
+                    <td style="width: 1%; white-space: nowrap;">RSBSA Reference No.:</td>
+                    <td style="border-bottom: 1px solid #000; padding-left: 10px;">${reviewForm.refNo || ''}</td>
+                  </tr>
+                  <tr>
+                    <td style="width: 1%; white-space: nowrap;">Farm Location Address:</td>
+                    <td style="border-bottom: 1px solid #000; padding-left: 10px;">${rowAddress || ''}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; margin-bottom: 40px;">
+                <thead>
+                  <tr>
+                    <th style="border: 1px solid #000; padding: 10px; width: 30%;">GPX FILE NAME</th>
+                    <th style="border: 1px solid #000; padding: 10px; width: 20%;">CROP</th>
+                    <th style="border: 1px solid #000; padding: 10px; width: 20%;">PLANTING SCHEDULE</th>
+                    <th style="border: 1px solid #000; padding: 10px; width: 15%;">DECLARED<br/>SIZE</th>
+                    <th style="border: 1px solid #000; padding: 10px; width: 15%;">VERIFIED<br/>SIZE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${reviewForm.parcels.map(p => `
+                  <tr>
+                    <td style="border: 1px solid #000; padding: 8px;">${p.gpxFileName}</td>
+                    <td style="border: 1px solid #000; padding: 8px;">${p.crop}</td>
+                    <td style="border: 1px solid #000; padding: 8px;">${p.plantingSchedule}</td>
+                    <td style="border: 1px solid #000; padding: 8px;">${p.declaredSize}</td>
+                    <td style="border: 1px solid #000; padding: 8px;">${p.verifiedSize}</td>
+                  </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+
+              <div style="margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 14px;">
+                <div style="font-family: serif; font-weight: bold;">RSBSA COPY</div>
+                <div style="text-align: center; font-size: 12px;">
+                  <div style="border-bottom: 1px solid #000; width: 300px; margin-bottom: 4px;"></div>
+                  <div>Farmer's Signature over Printed Name</div>
+                </div>
+                <div style="width: 120px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `
+
+      const farmerElement = setupPageElement()
+      farmerElement.innerHTML = `
+        <div style="border: 1px solid #000; padding: 40px; display: flex; flex-direction: column; position: relative; background: #fff;">
+          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.12; pointer-events: none; z-index: 0;">
+            <img src="/DA.png" alt="DA Watermark" style="width: 300px; height: 300px; object-fit: contain;" />
+          </div>
+          <div style="position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center;">
+              <img src="/DA.png" alt="DA Logo" style="width: 40px; height: 40px; margin-right: 10px;" />
+              <div>
+                <h1 style="margin: 0; font-size: 16px; font-weight: normal;">Department of Agriculture</h1>
+                <p style="margin: 0; font-size: 14px; font-weight: bold;">Registry System for Basic Sectors in Agriculture (RSBSA)</p>
+              </div>
+            </div>
+            <div style="border: 1px solid blue; color: blue; width: 220px; padding: 5px; display: flex; align-items: center; box-sizing: border-box;">
+              <img src="/DA.png" alt="DA Logo" style="width: 36px; height: 36px; margin-right: 8px;" />
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                <img src="/Head.png" alt="Head Signature" style="width: 160px; height: auto; max-width: none; margin-top: -20px; margin-bottom: -5px; position: relative; z-index: 10;" />
+                <div style="width: 100%; font-size: 9px; display: flex; flex-direction: column;">
+                  <div style="border-top: 1px solid blue; border-bottom: 1px solid blue; text-align: center; padding-top: 2px; padding-bottom: 2px; margin-bottom: 2px;">
+                    <div style="margin-bottom: 15px;">CERTIFIED BY:</div>
+                    <div style="color: #000; font-size: 14px;">${currentDate}</div>
+                  </div>
+                  <div style="text-align: center;">DATE</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <table style="width: 100%; margin-bottom: 20px; font-size: 14px; border-collapse: separate; border-spacing: 0 8px;">
+            <tbody>
+              <tr>
+                <td style="width: 1%; white-space: nowrap;">Name:</td>
+                <td style="border-bottom: 1px solid #000; padding-left: 10px;">${rowFullName || ''}</td>
+              </tr>
+              <tr>
+                <td style="width: 1%; white-space: nowrap;">RSBSA Reference No.:</td>
+                <td style="border-bottom: 1px solid #000; padding-left: 10px;">${reviewForm.refNo || ''}</td>
+              </tr>
+              <tr>
+                <td style="width: 1%; white-space: nowrap;">Farm Location Address:</td>
+                <td style="border-bottom: 1px solid #000; padding-left: 10px;">${rowAddress || ''}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; margin-bottom: 40px;">
+            <thead>
+              <tr>
+                <th style="border: 1px solid #000; padding: 10px; width: 30%;">GPX FILE NAME</th>
+                <th style="border: 1px solid #000; padding: 10px; width: 20%;">CROP</th>
+                <th style="border: 1px solid #000; padding: 10px; width: 20%;">PLANTING SCHEDULE</th>
+                <th style="border: 1px solid #000; padding: 10px; width: 15%;">DECLARED<br/>SIZE</th>
+                <th style="border: 1px solid #000; padding: 10px; width: 15%;">VERIFIED<br/>SIZE</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reviewForm.parcels.map(p => `
+              <tr>
+                <td style="border: 1px solid #000; padding: 8px;">${p.gpxFileName}</td>
+                <td style="border: 1px solid #000; padding: 8px;">${p.crop}</td>
+                <td style="border: 1px solid #000; padding: 8px;">${p.plantingSchedule}</td>
+                <td style="border: 1px solid #000; padding: 8px;">${p.declaredSize}</td>
+                <td style="border: 1px solid #000; padding: 8px;">${p.verifiedSize}</td>
+              </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div style="margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 14px;">
+            <div style="font-family: serif; font-weight: bold;">FARMER'S COPY</div>
+            <div style="text-align: center; font-size: 12px;">
+              <div style="border-bottom: 1px solid #000; width: 300px; margin-bottom: 4px;"></div>
+              <div>Farmer's Signature over Printed Name</div>
+            </div>
+            <div style="width: 120px;"></div>
+          </div>
+        </div>
+      `
+
+      container.appendChild(ocasElement)
+      container.appendChild(farmerElement)
+      document.body.appendChild(container)
+
+      const combinedCanvas = await html2canvas(container, { scale: 2, useCORS: true })
+      const farmerCanvas = await html2canvas(farmerElement, { scale: 2, useCORS: true })
+      document.body.removeChild(container)
+
+      setPreviewImages({
+        combined: combinedCanvas.toDataURL('image/jpeg', 0.98),
+        farmer: farmerCanvas.toDataURL('image/jpeg', 0.98)
+      })
     } catch (err) {
-      alert('Error saving CSV records.')
+      console.error('Image generation error:', err)
+      setNotification({ type: 'error', message: 'Failed to generate Image. Please try again.' })
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const handleDownload = async () => {
+    if (!previewImages) return
+    setIsSending(true)
+
+    try {
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          email: selectedRecord.email,
+          image: previewImages.farmer,
+          refNo: reviewForm.refNo
+        })
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Failed to send email')
+      }
+
+      const link = document.createElement('a')
+      link.href = previewImages.combined
+
+      const fullName = [selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name].filter(Boolean).join(' ')
+      const dateIssued = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).replace(/,/g, '')
+      link.download = `RSBSA_Stub_${fullName}_${dateIssued}.jpg`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      // Delete the request from the database
+      const deleteRes = await fetch(`/api/records?id=${selectedRecord.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      })
+
+      if (!deleteRes.ok) {
+        console.error('Failed to delete record from database')
+        setNotification({ type: 'error', message: 'Email sent & OCAS downloaded, but failed to delete request from database.' })
+      } else {
+        // Remove from local state
+        setRecords(prev => prev.filter(r => r.id !== selectedRecord.id))
+        setNotification({ type: 'success', message: 'Request processed and removed successfully!' })
+      }
+
+      setPreviewImages(null)
+      setSelectedRecord(null) // Close the review modal
+    } catch (err) {
+      setNotification({ type: 'error', message: err.message })
+    } finally {
+      setIsSending(false)
     }
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="container" style={{ maxWidth: '400px', marginTop: '10vh' }}>
+      <>
         <Head>
           <title>Admin Login - eRSBSA</title>
         </Head>
-        <div className="logo-row" style={{ marginBottom: '24px' }}>
-          <img src="/City.png" alt="City logo" className="logo" />
-          <img src="/DA.png" alt="DA logo" className="logo" />
+        <div style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+          padding: '24px'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '24px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            width: '100%',
+            maxWidth: '440px',
+            overflow: 'hidden'
+          }}>
+            <div style={{ padding: '40px' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '32px' }}>
+                <img src="/City.png" alt="City logo" style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
+                <img src="/DA.png" alt="DA logo" style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
+              </div>
+              <h2 style={{ textAlign: 'center', margin: '0 0 8px 0', fontSize: '1.75rem', color: '#0f172a', fontWeight: '700' }}>Welcome Back</h2>
+              <p style={{ textAlign: 'center', margin: '0 0 32px 0', color: '#64748b', fontSize: '0.95rem' }}>Sign in to access the eRSBSA Admin Dashboard</p>
+
+              <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: '600', color: '#334155' }}>Username</label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' }}
+                    placeholder="Enter admin username"
+                    required
+                    autoFocus
+                    onFocus={(e) => e.target.style.borderColor = '#16a34a'}
+                    onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: '600', color: '#334155' }}>Password</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      style={{ width: '100%', padding: '12px 48px 12px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' }}
+                      placeholder="Enter admin password"
+                      required
+                      onFocus={(e) => e.target.style.borderColor = '#16a34a'}
+                      onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                      ) : (
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {loginError && (
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '12px', borderRadius: '8px', color: '#b91c1c', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                    Invalid username or password.
+                  </div>
+                )}
+
+                <button type="submit" style={{ width: '100%', padding: '14px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '12px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', marginTop: '8px', transition: 'background 0.2s, transform 0.1s' }} onMouseEnter={(e) => e.target.style.background = '#15803d'} onMouseLeave={(e) => e.target.style.background = '#16a34a'} onMouseDown={(e) => e.target.style.transform = 'scale(0.98)'} onMouseUp={(e) => e.target.style.transform = 'scale(1)'}>
+                  Sign In
+                </button>
+              </form>
+            </div>
+            <div style={{ background: '#f8fafc', padding: '20px', textAlign: 'center', borderTop: '1px solid #f1f5f9' }}>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}> &copy; 2026 Office for Agricultural Services</p>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#0c0c0cff' }}>TechCraft by Chano | <a href="mailto:officialchano18@gmail.com">officialchano18@gmail.com</a></p>
+            </div>
+          </div>
         </div>
-        <div className="card">
-          <h2 className="title" style={{ textAlign: 'center', marginBottom: '16px' }}>Admin Login</h2>
-          <form onSubmit={handleLogin} className="form-grid">
-            <label className="label">
-              Password
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="Enter admin password" required autoFocus />
-            </label>
-            {loginError && <p className="error" style={{ fontSize: '0.9rem', margin: '0' }}>Incorrect password.</p>}
-            <button type="submit" className="btn" style={{ marginTop: '8px' }}>Login</button>
-          </form>
-        </div>
-      </div>
+      </>
     )
   }
 
   return (
-    <div className="container" style={{ maxWidth: '1100px' }}>
+    <>
       <Head>
         <title>Admin Dashboard - eRSBSA</title>
       </Head>
-      
-      <div className="hero">
-        <div className="logo-row">
-          <img src="/City.png" alt="City logo" className="logo" />
-          <img src="/DA.png" alt="DA logo" className="logo" />
-        </div>
-        <h1 className="title">Admin Dashboard</h1>
-        <p className="subtitle">Manage and update RSBSA Records</p>
-      </div>
 
-      <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-        <button className="btn" style={{ background: 'var(--muted)', color: 'var(--text)' }} onClick={handleLogout}>
-          Logout
-        </button>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button className="btn" style={{ background: '#3b82f6' }} onClick={handleDownloadTemplate}>
-            Download Template
-          </button>
-          <button className="btn" style={{ background: '#eab308', color: '#fff' }} onClick={() => fileInputRef.current?.click()}>
-            Import CSV
-          </button>
-          <button className="btn" onClick={() => { setFormData({}); setShowModal(true) }}>
-            + Add New Record
-          </button>
-        </div>
-      </div>
-      <input type="file" accept=".csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportCSV} />
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--color-green-50)' }}>
+        {/* Sidebar */}
+        <aside style={{ width: '260px', background: 'white', borderRight: '1px solid var(--muted)', display: 'flex', flexDirection: 'column', flexShrink: 0, padding: '24px' }}>
+          <div className="logo-row" style={{ marginBottom: '24px' }}>
+            <img src="/City.png" alt="City logo" className="logo" style={{ width: '56px' }} />
+            <img src="/DA.png" alt="DA logo" className="logo" style={{ width: '56px' }} />
+          </div>
 
-      <div className="panel" style={{ width: '100%', overflowX: 'auto', overflowY: 'auto', maxHeight: '65vh' }}>
-        {loading ? (
-          <p style={{ textAlign: 'center', padding: '20px' }}>Loading records...</p>
-        ) : (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Ref No</th>
-                <th>Name</th>
-                <th>Barangay</th>
-                <th>Crop</th>
-                <th style={{ textAlign: 'center' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {records.map(r => (
-                <tr key={r.id}>
-                  <td>{r.ref_no || '-'}</td>
-                  <td>{[r.first_name, r.middle_initial, r.last_name].filter(Boolean).join(' ') || '-'}</td>
-                  <td>{r.barangay || '-'}</td>
-                  <td>{r.crop || '-'}</td>
-                  <td style={{ textAlign: 'center' }}>
-                    <button className="btn btn-sm" onClick={() => handleEdit(r)} style={{ marginRight: '8px' }}>Edit</button>
-                    <button className="btn btn-sm btn-danger" onClick={() => handleDelete(r.id)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-              {records.length === 0 && (
-                <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>No records found in the database.</td></tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
+          <div style={{ marginBottom: '32px' }}>
+            <h1 className="title" style={{ fontSize: '1.5rem', textAlign: 'left' }}>Admin Dashboard</h1>
+            <p className="subtitle" style={{ margin: '4px 0 0', textAlign: 'left', fontSize: '0.9rem' }}>
+              View User Requests
+            </p>
+          </div>
 
-      {/* Reuse result-modal styles for the Add/Edit Form Overlay */}
-      {showModal && (
-        <div className="result-modal" onMouseDown={(e) => { if(e.target === e.currentTarget) setShowModal(false) }}>
-          <div className="result-card" style={{ maxWidth: '700px' }}>
-            <div className="result-header">
-              <h3>{formData.id ? 'Edit Record' : 'Add New Record'}</h3>
-              <button className="result-close" onClick={() => setShowModal(false)} aria-label="Close">×</button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="form-grid">
-              <label className="label">Ref No<input name="ref_no" value={formData.ref_no || ''} onChange={handleChange} className="input" required /></label>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                <label className="label">First Name<input name="first_name" value={formData.first_name || ''} onChange={handleChange} className="input" required /></label>
-                <label className="label">M.I.<input name="middle_initial" value={formData.middle_initial || ''} onChange={handleChange} className="input" /></label>
-                <label className="label">Last Name<input name="last_name" value={formData.last_name || ''} onChange={handleChange} className="input" required /></label>
-              </div>
-              
-              <label className="label">
-                Barangay
-                <div className="select-wrapper" ref={wrapperRef}>
-                  <input
-                    name="barangay"
-                    className="input"
-                    value={formData.barangay || ''}
-                    onChange={(e) => { setFormData({ ...formData, barangay: e.target.value }); setShowDropdown(true); setHighlightIndex(-1); }}
-                    onFocus={() => setShowDropdown(true)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Select barangay"
-                    required
-                    aria-autocomplete="list"
-                    aria-haspopup="true"
-                  />
-                  {showDropdown && (
-                    <ul className="dropdown-list" role="listbox">
-                      {filteredBarangays.length === 0 && <li className="dropdown-item">No results</li>}
-                      {filteredBarangays.map((b, idx) => (
-                        <li
-                          key={b}
-                          role="option"
-                          aria-selected={highlightIndex === idx}
-                          className={`dropdown-item ${highlightIndex === idx ? 'highlight' : ''}`}
-                          onMouseDown={(ev) => { ev.preventDefault(); selectBarangay(b) }}
-                          onMouseEnter={() => setHighlightIndex(idx)}
-                        >
-                          {b}
-                        </li>
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+            <button
+              className="sidebar-link active"
+              onClick={() => { }}
+            >
+              Requests
+            </button>
+          </nav>
+
+          <button className="btn" style={{ background: 'var(--muted)', color: 'var(--text)', marginTop: 'auto' }} onClick={handleLogout}>
+            Logout
+          </button>
+        </aside>
+
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '32px 40px', overflowY: 'auto', flex: 1 }}>
+            <div className="card" style={{ width: '100%', maxWidth: '100%', padding: '0', overflow: 'hidden' }}>
+              <div style={{ width: '100%', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+                {loading ? (
+                  <p style={{ textAlign: 'center', padding: '40px' }}>Loading requests...</p>
+                ) : (
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Region</th>
+                        <th>Barangay</th>
+                        <th>Submitted At</th>
+                        <th style={{ textAlign: 'center' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {records.map(r => (
+                        <tr key={r.id}>
+                          <td>{[r.first_name, r.middle_initial, r.last_name].filter(Boolean).join(' ') || '-'}</td>
+                          <td>{r.email || '-'}</td>
+                          <td>{r.region || '-'}</td>
+                          <td>{r.barangay || '-'}</td>
+                          <td>{new Date(r.created_at).toLocaleString() || '-'}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button className="btn btn-sm" onClick={() => handleReview(r)}>Open Request</button>
+                          </td>
+                        </tr>
                       ))}
-                    </ul>
+                      {records.length === 0 && (
+                        <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px' }}>No requests found in the database.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* Review and Edit Modal */}
+      {selectedRecord && (
+        <div className="result-modal" role="dialog" aria-modal="true" onMouseDown={() => setSelectedRecord(null)}>
+          <form className="result-card" style={{ maxWidth: '650px', padding: '32px' }} onMouseDown={(e) => e.stopPropagation()} onSubmit={handleGenerate}>
+            <div className="result-header" style={{ marginBottom: '24px' }}>
+              <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.25rem' }}>Review Request</h3>
+              <button type="button" className="result-close" onClick={() => setSelectedRecord(null)}>×</button>
+            </div>
+
+            <div className="result-summary" style={{ marginBottom: '24px', background: 'var(--color-green-50)', borderColor: 'var(--color-green-200)' }}>
+              <p style={{ margin: '4px 0' }}><strong>Name:</strong> {[selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name].filter(Boolean).join(' ') || '-'}</p>
+              <p style={{ margin: '4px 0' }}><strong>Farm Location:</strong> {[selectedRecord.barangay, selectedRecord.city, selectedRecord.province, selectedRecord.region].filter(Boolean).join(', ') || '-'}</p>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label className="label">
+                RSBSA Reference No.:
+                <input type="text" id="refNo" name="refNo" value={reviewForm.refNo} onChange={handleReviewChange} className="input" required />
+              </label>
+            </div>
+
+            {reviewForm.parcels.map((parcel, index) => (
+              <div key={index} style={{ marginBottom: '24px', padding: '24px', border: '1px solid var(--muted)', borderRadius: '12px', background: 'var(--bg)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '1.1rem' }}>Parcel {index + 1}</h4>
+                  {reviewForm.parcels.length > 1 && (
+                    <button type="button" onClick={() => removeParcel(index)} className="btn btn-sm btn-danger" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>Remove</button>
                   )}
                 </div>
-              </label>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <label className="label">Crop<input name="crop" value={formData.crop || ''} onChange={handleChange} className="input" /></label>
-                <label className="label">Planting Schedule<input name="planting_schedule" value={formData.planting_schedule || ''} onChange={handleChange} className="input" /></label>
-                <label className="label">Declared Size<input name="declared_size" value={formData.declared_size || ''} onChange={handleChange} className="input" /></label>
-                <label className="label">Verified Size<input name="verified_size" value={formData.verified_size || ''} onChange={handleChange} className="input" /></label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+                  <label className="label">
+                    GPX File name
+                    <input type="text" id={`parcel-${index}-gpxFileName`} name="gpxFileName" value={parcel.gpxFileName} onChange={(e) => handleParcelChange(index, e)} className="input" style={{ background: 'white' }} required />
+                  </label>
+                  <label className="label">
+                    Land Tenure
+                    <div className="select-wrapper" ref={activeDropdownIndex === index ? dropdownRef : null}>
+                      <input
+                        type="text"
+                        id={`parcel-${index}-landTenure`}
+                        name="landTenure"
+                        value={parcel.landTenure}
+                        onChange={(e) => {
+                          handleParcelChange(index, e)
+                          setActiveDropdownIndex(index)
+                          setDropdownHighlightIndex(-1)
+                        }}
+                        onFocus={() => {
+                          setActiveDropdownIndex(index)
+                          setDropdownHighlightIndex(-1)
+                          handleParcelChange(index, { target: { name: 'landTenure', value: '' } })
+                        }}
+                        onKeyDown={(e) => {
+                          if (activeDropdownIndex !== index) return
+                          const filtered = landTenureOptions.filter(o => o.toLowerCase().includes((parcel.landTenure || '').toLowerCase()))
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault()
+                            setDropdownHighlightIndex(i => Math.min(i + 1, filtered.length - 1))
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault()
+                            setDropdownHighlightIndex(i => Math.max(i - 1, 0))
+                          } else if (e.key === 'Enter') {
+                            e.preventDefault()
+                            if (dropdownHighlightIndex >= 0 && dropdownHighlightIndex < filtered.length) {
+                              handleParcelChange(index, { target: { name: 'landTenure', value: filtered[dropdownHighlightIndex] } })
+                              setActiveDropdownIndex(null)
+                            }
+                          } else if (e.key === 'Escape') {
+                            setActiveDropdownIndex(null)
+                          }
+                        }}
+                        className="input"
+                        style={{ background: 'white' }}
+                        placeholder="Select or search..."
+                        required
+                        autoComplete="off"
+                        aria-autocomplete="list"
+                        aria-haspopup="true"
+                      />
+                      {activeDropdownIndex === index && (
+                        <ul className="dropdown-list" role="listbox" style={{ zIndex: 10 }}>
+                          {(() => {
+                            const filtered = landTenureOptions.filter(o => o.toLowerCase().includes((parcel.landTenure || '').toLowerCase()))
+                            if (filtered.length === 0) return <li className="dropdown-item">No results</li>
+                            return filtered.map((o, idx) => (
+                              <li
+                                key={o}
+                                role="option"
+                                aria-selected={dropdownHighlightIndex === idx}
+                                className={`dropdown-item ${dropdownHighlightIndex === idx ? 'highlight' : ''}`}
+                                onMouseDown={(ev) => {
+                                  ev.preventDefault()
+                                  handleParcelChange(index, { target: { name: 'landTenure', value: o } })
+                                  setActiveDropdownIndex(null)
+                                }}
+                                onMouseEnter={() => setDropdownHighlightIndex(idx)}
+                              >
+                                {o}
+                              </li>
+                            ))
+                          })()}
+                        </ul>
+                      )}
+                    </div>
+                  </label>
+                  <label className="label">
+                    Parcel Name/Land Owner
+                    <input type="text" id={`parcel-${index}-parcelName`} name="parcelName" value={parcel.parcelName} onChange={(e) => handleParcelChange(index, e)} className="input" style={{ background: 'white' }} required />
+                  </label>
+                  <label className="label">
+                    Crop
+                    <input type="text" id={`parcel-${index}-crop`} name="crop" value={parcel.crop} onChange={(e) => handleParcelChange(index, e)} className="input" style={{ background: 'white' }} required />
+                  </label>
+                  <label className="label">
+                    Planting Schedule
+                    <input type="text" id={`parcel-${index}-plantingSchedule`} name="plantingSchedule" value={parcel.plantingSchedule} onChange={(e) => handleParcelChange(index, e)} className="input" style={{ background: 'white' }} required />
+                  </label>
+                  <label className="label">
+                    Declared Size
+                    <input type="number" id={`parcel-${index}-declaredSize`} step="0.01" min="0" name="declaredSize" value={parcel.declaredSize} onChange={(e) => handleParcelChange(index, e)} onBlur={(e) => handleParcelDecimalBlur(index, e)} className="input" style={{ background: 'white' }} required />
+                  </label>
+                  <label className="label">
+                    Verified Size
+                    <input type="number" id={`parcel-${index}-verifiedSize`} step="0.01" min="0" name="verifiedSize" value={parcel.verifiedSize} onChange={(e) => handleParcelChange(index, e)} onBlur={(e) => handleParcelDecimalBlur(index, e)} className="input" style={{ background: 'white' }} required />
+                  </label>
+                  <label className="label" style={{ gridColumn: '1 / -1' }}>
+                    Remarks
+                    <textarea id={`parcel-${index}-remarks`} name="remarks" value={parcel.remarks} onChange={(e) => handleParcelChange(index, e)} className="input" style={{ minHeight: '80px', resize: 'vertical', background: 'white' }} />
+                  </label>
+                </div>
               </div>
-              
-              <label className="label">GPX File Name<input name="gpx_file_name" value={formData.gpx_file_name || ''} onChange={handleChange} className="input" /></label>
-              <label className="label">Remarks<input name="remarks" value={formData.remarks || ''} onChange={handleChange} className="input" /></label>
-              
-              <div className="actions" style={{ justifyContent: 'flex-end', marginTop: '16px' }}>
-                <button type="button" className="btn" style={{ background: 'var(--muted)', color: 'var(--text)' }} onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn">{formData.id ? 'Update Record' : 'Save New Record'}</button>
-              </div>
-            </form>
-          </div>
+            ))}
+
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <button type="button" className="btn" style={{ background: 'transparent', color: 'var(--primary)', border: '2px dashed var(--primary)' }} onClick={addParcel}>+ Add Another Parcel</button>
+            </div>
+
+            <div className="actions" style={{ marginTop: '32px', justifyContent: 'flex-end', gap: '12px' }}>
+              <button type="button" className="btn" style={{ background: 'var(--muted)', color: 'var(--text)' }} onClick={() => setSelectedRecord(null)}>Cancel</button>
+              <button type="submit" className="btn" disabled={isGenerating}>
+                {isGenerating ? 'Generating...' : 'Generate Stub'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
-      {/* CSV Preview Modal */}
-      {csvPreview && (
-        <div className="result-modal" onMouseDown={(e) => { if(e.target === e.currentTarget) setCsvPreview(null) }}>
-          <div className="result-card" style={{ maxWidth: '1000px', width: '100%' }}>
-            <div className="result-header">
-              <h3>CSV Import Preview</h3>
-              <button className="result-close" onClick={() => setCsvPreview(null)} aria-label="Close">×</button>
+      {/* Preview Modal */}
+      {previewImages && (
+        <div className="result-modal" style={{ zIndex: 1050 }} role="dialog" aria-modal="true" onMouseDown={() => !isSending && setPreviewImages(null)}>
+          <div className="result-card" style={{ maxWidth: '850px', padding: '32px', textAlign: 'center' }} onMouseDown={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.25rem' }}>Stub Preview</h3>
+              <button type="button" className="result-close" onClick={() => setPreviewImages(null)} disabled={isSending}>×</button>
             </div>
-            <p style={{ marginBottom: '16px', color: '#475569' }}>
-              Review the records before importing. Duplicates are flagged and will be ignored.
-            </p>
-
-            <div className="panel" style={{ overflow: 'auto', maxHeight: '50vh', marginBottom: '16px' }}>
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Status</th>
-                    <th>Ref No</th>
-                    <th>Name</th>
-                    <th>Barangay</th>
-                    <th>Crop</th>
-                    <th>Sizes (Dec/Ver)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {csvPreview.map((r, i) => (
-                    <tr key={i} style={{ backgroundColor: r._isDuplicate ? 'rgba(220, 38, 38, 0.05)' : 'transparent' }}>
-                      <td>
-                        {r._isDuplicate 
-                          ? <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '0.8rem' }}>Duplicate</span>
-                          : <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '0.8rem' }}>Valid</span>}
-                      </td>
-                      <td>{r.ref_no || '-'}</td>
-                      <td>{[r.first_name, r.middle_initial, r.last_name].filter(Boolean).join(' ') || '-'}</td>
-                      <td>{r.barangay || '-'}</td>
-                      <td>{r.crop || '-'}</td>
-                      <td>{r.declared_size || '-'} / {r.verified_size || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ border: '1px solid var(--muted)', marginBottom: '24px' }}>
+              <div style={{ background: '#f8fafc', padding: '8px', borderBottom: '1px solid var(--muted)', fontWeight: 'bold' }}>OCAS Copy (To be downloaded)</div>
+              <img src={previewImages.ocas} alt="Generated OCAS Copy" style={{ width: '100%', display: 'block', borderBottom: '1px solid var(--muted)' }} />
+              <div style={{ background: '#f8fafc', padding: '8px', borderBottom: '1px solid var(--muted)', fontWeight: 'bold' }}>Farmer's Copy (To be emailed)</div>
+              <img src={previewImages.farmer} alt="Generated Farmer's Copy" style={{ width: '100%', display: 'block' }} />
             </div>
-
-            <div className="actions" style={{ justifyContent: 'flex-end', marginTop: '16px' }}>
-              <button type="button" className="btn" style={{ background: 'var(--muted)', color: 'var(--text)' }} onClick={() => setCsvPreview(null)}>Cancel</button>
-              <button type="button" className="btn" onClick={handleConfirmImport}>
-                Confirm & Import {csvPreview.filter(r => !r._isDuplicate).length} Records
+            <div className="actions" style={{ justifyContent: 'center', gap: '12px' }}>
+              <button type="button" className="btn" style={{ background: 'var(--muted)', color: 'var(--text)', opacity: isSending ? 0.6 : 1, cursor: isSending ? 'not-allowed' : 'pointer' }} onClick={() => setPreviewImages(null)} disabled={isSending}>Back to Edit</button>
+              <button type="button" className="btn" onClick={handleDownload} disabled={isSending}>
+                {isSending ? 'Sending...' : 'Download and Send'}
               </button>
             </div>
           </div>
         </div>
       )}
-    </div>
+
+      {/* Notification Modal */}
+      {notification && (
+        <div className="result-modal" style={{ zIndex: 1100 }} role="dialog" aria-modal="true" onMouseDown={() => { if (notification.onClose) notification.onClose(); setNotification(null); }}>
+          <div className="result-card" style={{ maxWidth: '400px', textAlign: 'center', padding: '32px' }} onMouseDown={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>
+              {notification.type === 'success' ? '✅' : notification.type === 'error' ? '❌' : '⚠️'}
+            </div>
+            <h3 style={{ margin: '0 0 12px 0', color: notification.type === 'error' ? '#b91c1c' : '#0f172a' }}>
+              {notification.type === 'success' ? 'Success' : notification.type === 'error' ? 'Error' : 'Notice'}
+            </h3>
+            <p style={{ margin: '0 0 24px 0', color: '#334155' }}>{notification.message}</p>
+            <button className="btn" style={{ width: '100%', background: notification.type === 'error' ? '#b91c1c' : 'var(--accent)' }} onClick={() => { if (notification.onClose) notification.onClose(); setNotification(null); }}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
