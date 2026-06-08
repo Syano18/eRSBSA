@@ -455,11 +455,13 @@ export default function AdminDashboard() {
       container.appendChild(farmerElement)
       document.body.appendChild(container)
 
+      const ocasCanvas = await html2canvas(ocasElement, { scale: 2, useCORS: true })
       const combinedCanvas = await html2canvas(container, { scale: 2, useCORS: true })
       const farmerCanvas = await html2canvas(farmerElement, { scale: 2, useCORS: true })
       document.body.removeChild(container)
 
       setPreviewImages({
+        ocas: ocasCanvas.toDataURL('image/jpeg', 0.98),
         combined: combinedCanvas.toDataURL('image/jpeg', 0.98),
         farmer: farmerCanvas.toDataURL('image/jpeg', 0.98)
       })
