@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Database environment variables are missing on the server.' })
   }
 
-  const { firstName, middleInitial, lastName, email, region, province, city, barangay } = req.body || {}
+  const { firstName, middleInitial, lastName, suffix, email, region, province, city, barangay } = req.body || {}
 
   if (!firstName || !middleInitial || !lastName || !email || !region || !province || !city || !barangay) {
     return res.status(400).json({ error: 'All fields (First Name, Middle Initial, Last Name, Email, Region, Province, City, Barangay) are required.' })
@@ -31,6 +31,7 @@ export default async function handler(req, res) {
         first_name TEXT,
         middle_initial TEXT,
         last_name TEXT,
+        suffix TEXT,
         email TEXT,
         region TEXT,
         barangay TEXT,
@@ -41,7 +42,7 @@ export default async function handler(req, res) {
     `);
 
     // Safely attempt to add new columns in case the table was created before they were introduced.
-    const newColumns = ['email', 'region', 'city', 'province'];
+    const newColumns = ['email', 'region', 'city', 'province', 'suffix'];
     for (const col of newColumns) {
       try {
         await client.execute(`ALTER TABLE Requests ADD COLUMN ${col} TEXT`);
@@ -50,8 +51,8 @@ export default async function handler(req, res) {
       }
     }
 
-    const sql = `INSERT INTO Requests (first_name, middle_initial, last_name, email, region, barangay, city, province) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    const params = [firstName, middleInitial, lastName, email, region, barangay, city, province]
+    const sql = `INSERT INTO Requests (first_name, middle_initial, last_name, suffix, email, region, barangay, city, province) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    const params = [firstName, middleInitial, lastName, suffix, email, region, barangay, city, province]
     const result = await client.execute(sql, params)
     return res.status(200).json({ success: true, message: 'Request submitted successfully.' })
   } catch (err) {

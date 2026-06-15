@@ -39,6 +39,7 @@ export default async function handler(req, res) {
           first_name TEXT,
           middle_initial TEXT,
           last_name TEXT,
+          suffix TEXT,
           email TEXT,
           region TEXT,
           barangay TEXT,
@@ -49,7 +50,7 @@ export default async function handler(req, res) {
       `);
 
       // Safely attempt to add new columns in case the table was created before they were introduced.
-      const newColumns = ['email', 'region', 'city', 'province'];
+      const newColumns = ['email', 'region', 'city', 'province', 'suffix'];
       for (const col of newColumns) {
         try {
           await client.execute(`ALTER TABLE Requests ADD COLUMN ${col} TEXT`);

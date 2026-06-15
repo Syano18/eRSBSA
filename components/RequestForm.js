@@ -4,6 +4,7 @@ export default function RequestForm({ onSearch }) {
   const [firstName, setFirstName] = useState('')
   const [middleInitial, setMiddleInitial] = useState('')
   const [lastName, setLastName] = useState('')
+  const [suffix, setSuffix] = useState('')
   const [email, setEmail] = useState('')
   
 
@@ -37,9 +38,12 @@ export default function RequestForm({ onSearch }) {
   const cityWrapperRef = useRef(null)
 
   const normalizeMiddleInitial = (value) => {
-    const cleaned = value.replace(/[^a-zA-Z]/g, '').trim()
+    let cleaned = value.trim().toUpperCase()
     if (!cleaned) return ''
-    return `${cleaned.toUpperCase()}.`
+    if (!cleaned.endsWith('.')) {
+      cleaned += '.'
+    }
+    return cleaned
   }
   
   useEffect(() => {
@@ -145,6 +149,7 @@ export default function RequestForm({ onSearch }) {
 
   const onFirstNameFocus = () => { setFirstName('') }
   const onLastNameFocus = () => { setLastName('') }
+  const onSuffixFocus = () => { setSuffix('') }
   const onEmailFocus = () => { setEmail('') }
   const onMiddleInitialFocus = () => { setMiddleInitial('') }
   const onBarangayFocus = () => { setBarangay(''); setShowDropdown(true) }
@@ -285,9 +290,10 @@ export default function RequestForm({ onSearch }) {
     e.preventDefault()
     
     const payload = {
-      firstName: firstName.trim(),
+      firstName: firstName.trim().toUpperCase(),
       middleInitial: normalizeMiddleInitial(middleInitial),
-      lastName: lastName.trim(),
+      lastName: lastName.trim().toUpperCase(),
+      suffix: suffix.trim().toUpperCase(),
       email: email.trim(),
       region: region.trim(),
       barangay: barangay.trim(),
@@ -316,7 +322,7 @@ export default function RequestForm({ onSearch }) {
         <h4 className="panel-title">Personal Information</h4>
         <div className="form-grid name-row">
           <label className="label">
-            First name
+            <span>First name<span style={{ color: 'red' }}>*</span></span>
             <input
               className="input"
               value={firstName}
@@ -328,7 +334,7 @@ export default function RequestForm({ onSearch }) {
           </label>
 
           <label className="label">
-            M.I.
+            <span>M.I.<span style={{ color: 'red' }}>*</span></span>
             <input
               className="input"
               value={middleInitial}
@@ -342,7 +348,7 @@ export default function RequestForm({ onSearch }) {
           </label>
 
           <label className="label">
-            Last name
+            <span>Last name<span style={{ color: 'red' }}>*</span></span>
             <input
               className="input"
               value={lastName}
@@ -352,11 +358,22 @@ export default function RequestForm({ onSearch }) {
               required
             />
           </label>
+
+          <label className="label">
+            <span>Suffix</span>
+            <input
+              className="input"
+              value={suffix}
+              onChange={(e) => setSuffix(e.target.value)}
+              onFocus={onSuffixFocus}
+              placeholder="Jr., Sr., III"
+            />
+          </label>
         </div>
         
         <div className="form-grid" style={{ marginTop: '10px' }}>
           <label className="label">
-            Email Address
+            <span>Email Address<span style={{ color: 'red' }}>*</span></span>
             <input
               type="email"
               className="input"
@@ -374,7 +391,7 @@ export default function RequestForm({ onSearch }) {
         <h4 className="panel-title">Farm Location Address</h4>
         <div className="form-grid address-row">
           <label className="label">
-            Region
+            <span>Region<span style={{ color: 'red' }}>*</span></span>
             <div className="select-wrapper" ref={regionWrapperRef}>
               <input
                 className="input"
@@ -408,7 +425,7 @@ export default function RequestForm({ onSearch }) {
           </label>
 
           <label className="label">
-            Province
+            <span>Province<span style={{ color: 'red' }}>*</span></span>
             <div className="select-wrapper" ref={provinceWrapperRef}>
               <input
                 className="input"
@@ -443,7 +460,7 @@ export default function RequestForm({ onSearch }) {
           </label>
 
           <label className="label">
-            City / Municipality
+            <span>City / Municipality<span style={{ color: 'red' }}>*</span></span>
             <div className="select-wrapper" ref={cityWrapperRef}>
               <input
                 className="input"
@@ -478,7 +495,7 @@ export default function RequestForm({ onSearch }) {
           </label>
 
           <label className="label">
-            Barangay
+            <span>Barangay<span style={{ color: 'red' }}>*</span></span>
             <div className="select-wrapper" ref={wrapperRef}>
               <input
                 className="input"

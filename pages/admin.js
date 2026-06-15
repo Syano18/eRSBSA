@@ -191,7 +191,7 @@ export default function AdminDashboard() {
     try {
       const html2canvas = (await import('html2canvas')).default
 
-      const rowFullName = [selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name].filter(Boolean).join(' ')
+      const rowFullName = [selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name, selectedRecord.suffix].filter(Boolean).join(' ')
       const rowAddress = [selectedRecord.barangay, selectedRecord.city, selectedRecord.province, selectedRecord.region].filter(Boolean).join(', ')
       const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
@@ -202,7 +202,7 @@ export default function AdminDashboard() {
       container.style.overflow = 'hidden'
       container.style.display = 'flex'
       container.style.flexDirection = 'column'
-      container.style.gap = '40px'
+      container.style.gap = '10px'
       container.style.width = '794px' // A4 standard width
 
       const setupPageElement = () => {
@@ -286,7 +286,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div style="border-bottom: 1px solid #000; margin: 30px -40px 30px -40px;"></div>
+          <div style="border-bottom: 1px solid #000; margin: 15px -40px 15px -40px;"></div>
 
           <!-- RSBSA COPY -->
           <div style="position: relative; flex: 1; display: flex; flex-direction: column;">
@@ -373,11 +373,12 @@ export default function AdminDashboard() {
       const farmerElement = setupPageElement()
       farmerElement.innerHTML = `
         <div style="border: 1px solid #000; padding: 40px; display: flex; flex-direction: column; position: relative; background: #fff;">
-          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.12; pointer-events: none; z-index: 0;">
-            <img src="/DA.png" alt="DA Watermark" style="width: 300px; height: 300px; object-fit: contain;" />
-          </div>
-          <div style="position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+          <div style="position: relative; flex: 1; display: flex; flex-direction: column;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.12; pointer-events: none; z-index: 0;">
+              <img src="/DA.png" alt="DA Watermark" style="width: 300px; height: 300px; object-fit: contain;" />
+            </div>
+            <div style="position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
             <div style="display: flex; align-items: center;">
               <img src="/DA.png" alt="DA Logo" style="width: 40px; height: 40px; margin-right: 10px;" />
               <div>
@@ -449,6 +450,7 @@ export default function AdminDashboard() {
             <div style="width: 120px;"></div>
           </div>
         </div>
+      </div>
       `
 
       container.appendChild(ocasElement)
@@ -456,8 +458,22 @@ export default function AdminDashboard() {
       document.body.appendChild(container)
 
       const ocasCanvas = await html2canvas(ocasElement, { scale: 2, useCORS: true })
-      const combinedCanvas = await html2canvas(container, { scale: 2, useCORS: true })
       const farmerCanvas = await html2canvas(farmerElement, { scale: 2, useCORS: true })
+
+      // Merge farmer element into ocas element for combined canvas
+      const ocasBorderedDiv = ocasElement.firstElementChild
+      const farmerBorderedDiv = farmerElement.firstElementChild
+      
+      const sep = document.createElement('div')
+      sep.style.borderBottom = '1px solid #000'
+      sep.style.margin = '15px -40px 15px -40px'
+      ocasBorderedDiv.appendChild(sep)
+      
+      while (farmerBorderedDiv.firstChild) {
+        ocasBorderedDiv.appendChild(farmerBorderedDiv.firstChild)
+      }
+
+      const combinedCanvas = await html2canvas(ocasElement, { scale: 2, useCORS: true })
       document.body.removeChild(container)
 
       setPreviewImages({
@@ -496,7 +512,7 @@ export default function AdminDashboard() {
       const link = document.createElement('a')
       link.href = previewImages.combined
 
-      const fullName = [selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name].filter(Boolean).join(' ')
+      const fullName = [selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name, selectedRecord.suffix].filter(Boolean).join(' ')
       const dateIssued = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).replace(/,/g, '')
       link.download = `RSBSA_Stub_${fullName}_${dateIssued}.jpg`
       document.body.appendChild(link)
@@ -678,7 +694,7 @@ export default function AdminDashboard() {
                     <tbody>
                       {records.map(r => (
                         <tr key={r.id}>
-                          <td>{[r.first_name, r.middle_initial, r.last_name].filter(Boolean).join(' ') || '-'}</td>
+                          <td>{[r.first_name, r.middle_initial, r.last_name, r.suffix].filter(Boolean).join(' ') || '-'}</td>
                           <td>{r.email || '-'}</td>
                           <td>{r.region || '-'}</td>
                           <td>{r.barangay || '-'}</td>
@@ -710,7 +726,7 @@ export default function AdminDashboard() {
             </div>
 
             <div className="result-summary" style={{ marginBottom: '24px', background: 'var(--color-green-50)', borderColor: 'var(--color-green-200)' }}>
-              <p style={{ margin: '4px 0' }}><strong>Name:</strong> {[selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name].filter(Boolean).join(' ') || '-'}</p>
+              <p style={{ margin: '4px 0' }}><strong>Name:</strong> {[selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name, selectedRecord.suffix].filter(Boolean).join(' ') || '-'}</p>
               <p style={{ margin: '4px 0' }}><strong>Farm Location:</strong> {[selectedRecord.barangay, selectedRecord.city, selectedRecord.province, selectedRecord.region].filter(Boolean).join(', ') || '-'}</p>
             </div>
 
