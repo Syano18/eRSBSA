@@ -783,11 +783,11 @@ export default function AdminDashboard() {
 
       {/* Verification Modal */}
       {verificationModalOpen && selectedRecord && (
-        <div className="result-modal" role="dialog" aria-modal="true" onMouseDown={() => setVerificationModalOpen(false)}>
+        <div className="result-modal" role="dialog" aria-modal="true" onMouseDown={() => { setVerificationModalOpen(false); setSelectedRecord(null); }}>
           <div className="result-card" style={{ maxWidth: '500px', padding: '32px' }} onMouseDown={(e) => e.stopPropagation()}>
             <div className="result-header" style={{ marginBottom: '24px' }}>
               <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.25rem' }}>Verify Farmer Record</h3>
-              <button type="button" className="result-close" onClick={() => setVerificationModalOpen(false)}>×</button>
+              <button type="button" className="result-close" onClick={() => { setVerificationModalOpen(false); setSelectedRecord(null); }}>×</button>
             </div>
             
             {verificationStep === 'initial' ? (
