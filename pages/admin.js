@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import Head from 'next/head'
 
+const formatName = (first, middle, last, suffix) => {
+  let parts = [];
+  if (last) parts.push(last);
+  let firstSuffix = [first, suffix].filter(Boolean).join(' ');
+  if (firstSuffix) parts.push(firstSuffix);
+  if (middle && middle !== 'N/A') parts.push(middle);
+  return parts.join(', ');
+}
+
 export default function AdminDashboard() {
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
@@ -29,6 +38,11 @@ export default function AdminDashboard() {
   const [notification, setNotification] = useState(null)
   const [previewImages, setPreviewImages] = useState(null)
   const [isSending, setIsSending] = useState(false)
+
+  const [verificationModalOpen, setVerificationModalOpen] = useState(false)
+  const [verificationStep, setVerificationStep] = useState('initial')
+  const [feedbackText, setFeedbackText] = useState('')
+  const [feedbackLoading, setFeedbackLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
 
   const [activeDropdownIndex, setActiveDropdownIndex] = useState(null)
@@ -120,12 +134,20 @@ export default function AdminDashboard() {
 
   const handleReview = (record) => {
     setSelectedRecord(record)
+    setVerificationStep('initial')
+    setFeedbackText('')
+    setVerificationModalOpen(true)
+  }
+
+  const handleVerificationYes = () => {
+    setVerificationModalOpen(false)
     setReviewForm({
       refNo: '',
       parcels: [{
         gpxFileName: '',
         landTenure: '',
         parcelName: '',
+        farmLocationAddress: '',
         crop: '',
         plantingSchedule: '',
         declaredSize: '',
@@ -133,6 +155,42 @@ export default function AdminDashboard() {
         remarks: ''
       }]
     })
+  }
+
+  const submitFeedback = async () => {
+    if (!feedbackText.trim()) {
+      alert('Please enter your feedback.')
+      return
+    }
+    setFeedbackLoading(true)
+    try {
+      const res = await fetch('/api/send-feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({
+          id: selectedRecord.id,
+          email: selectedRecord.email,
+          name: formatName(selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name, selectedRecord.suffix) || 'Farmer',
+          feedback: feedbackText
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setRecords(prev => prev.filter(r => r.id !== selectedRecord.id))
+        setVerificationModalOpen(false)
+        setSelectedRecord(null)
+      } else {
+        alert(data.error || 'Failed to send feedback.')
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Error sending feedback.')
+    } finally {
+      setFeedbackLoading(false)
+    }
   }
 
   const handleReviewChange = (e) => {
@@ -163,7 +221,7 @@ export default function AdminDashboard() {
   const addParcel = () => {
     const lastIndex = reviewForm.parcels.length - 1
 
-    const requiredFields = ['gpxFileName', 'landTenure', 'parcelName', 'crop', 'plantingSchedule', 'declaredSize', 'verifiedSize']
+    const requiredFields = ['gpxFileName', 'landTenure', 'parcelName', 'farmLocationAddress', 'crop', 'plantingSchedule', 'declaredSize', 'verifiedSize']
     for (const field of requiredFields) {
       const el = document.getElementById(`parcel-${lastIndex}-${field}`)
       if (el && !el.checkValidity()) {
@@ -173,7 +231,7 @@ export default function AdminDashboard() {
     }
     setReviewForm(prev => ({
       ...prev,
-      parcels: [...prev.parcels, { gpxFileName: '', landTenure: '', parcelName: '', crop: '', plantingSchedule: '', declaredSize: '', verifiedSize: '', remarks: '' }]
+      parcels: [...prev.parcels, { gpxFileName: '', landTenure: '', parcelName: '', farmLocationAddress: '', crop: '', plantingSchedule: '', declaredSize: '', verifiedSize: '', remarks: '' }]
     }))
   }
 
@@ -191,8 +249,9 @@ export default function AdminDashboard() {
     try {
       const html2canvas = (await import('html2canvas')).default
 
-      const rowFullName = [selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name, selectedRecord.suffix].filter(Boolean).join(' ')
+      const rowFullName = formatName(selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name, selectedRecord.suffix)
       const rowAddress = [selectedRecord.barangay, selectedRecord.city, selectedRecord.province, selectedRecord.region].filter(Boolean).join(', ')
+      const rowContact = selectedRecord.contact_no || ''
       const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
       const container = document.createElement('div')
@@ -229,14 +288,14 @@ export default function AdminDashboard() {
               <div style="font-size: 14px;">FA Code: __________________</div>
             </div>
             <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 10px;">
-              <div>Contact No.: 09</div>
+              <div>Contact No.: ${rowContact}</div>
               <div style="display: flex; align-items: flex-end;">
                 <span style="white-space: nowrap; margin-right: 5px;">Date:</span>
                 <span style="border-bottom: 1px solid #000; min-width: 150px; text-align: center;">${currentDate}</span>
               </div>
             </div>
             <div style="font-size: 14px; margin-bottom: 15px; display: flex;">
-              <span style="white-space: nowrap; margin-right: 5px;">Farmer's Address:</span>
+              <span style="white-space: nowrap; margin-right: 5px;">Residence Address:</span>
               <span style="flex: 1; border-bottom: 1px solid #000;">${rowAddress || ''}</span>
             </div>
             
@@ -327,9 +386,6 @@ export default function AdminDashboard() {
                     <td style="width: 1%; white-space: nowrap;">RSBSA Reference No.:</td>
                     <td style="border-bottom: 1px solid #000; padding-left: 10px;">${reviewForm.refNo || ''}</td>
                   </tr>
-                  <tr>
-                    <td style="width: 1%; white-space: nowrap;">Farm Location Address:</td>
-                    <td style="border-bottom: 1px solid #000; padding-left: 10px;">${rowAddress || ''}</td>
                   </tr>
                 </tbody>
               </table>
@@ -337,9 +393,10 @@ export default function AdminDashboard() {
               <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; margin-bottom: 40px;">
                 <thead>
                   <tr>
-                    <th style="border: 1px solid #000; padding: 10px; width: 30%;">GPX FILE NAME</th>
-                    <th style="border: 1px solid #000; padding: 10px; width: 20%;">CROP</th>
-                    <th style="border: 1px solid #000; padding: 10px; width: 20%;">PLANTING SCHEDULE</th>
+                    <th style="border: 1px solid #000; padding: 10px; width: 20%;">GPX FILE NAME</th>
+                    <th style="border: 1px solid #000; padding: 10px; width: 20%;">FARM LOCATION</th>
+                    <th style="border: 1px solid #000; padding: 10px; width: 15%;">CROP</th>
+                    <th style="border: 1px solid #000; padding: 10px; width: 15%;">PLANTING SCHEDULE</th>
                     <th style="border: 1px solid #000; padding: 10px; width: 15%;">DECLARED<br/>SIZE</th>
                     <th style="border: 1px solid #000; padding: 10px; width: 15%;">VERIFIED<br/>SIZE</th>
                   </tr>
@@ -348,6 +405,7 @@ export default function AdminDashboard() {
                   ${reviewForm.parcels.map(p => `
                   <tr>
                     <td style="border: 1px solid #000; padding: 8px;">${p.gpxFileName}</td>
+                    <td style="border: 1px solid #000; padding: 8px;">${p.farmLocationAddress}</td>
                     <td style="border: 1px solid #000; padding: 8px;">${p.crop}</td>
                     <td style="border: 1px solid #000; padding: 8px;">${p.plantingSchedule}</td>
                     <td style="border: 1px solid #000; padding: 8px;">${p.declaredSize}</td>
@@ -411,19 +469,17 @@ export default function AdminDashboard() {
                 <td style="width: 1%; white-space: nowrap;">RSBSA Reference No.:</td>
                 <td style="border-bottom: 1px solid #000; padding-left: 10px;">${reviewForm.refNo || ''}</td>
               </tr>
-              <tr>
-                <td style="width: 1%; white-space: nowrap;">Farm Location Address:</td>
-                <td style="border-bottom: 1px solid #000; padding-left: 10px;">${rowAddress || ''}</td>
-              </tr>
+                  </tr>
             </tbody>
           </table>
 
           <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; margin-bottom: 40px;">
             <thead>
               <tr>
-                <th style="border: 1px solid #000; padding: 10px; width: 30%;">GPX FILE NAME</th>
-                <th style="border: 1px solid #000; padding: 10px; width: 20%;">CROP</th>
-                <th style="border: 1px solid #000; padding: 10px; width: 20%;">PLANTING SCHEDULE</th>
+                <th style="border: 1px solid #000; padding: 10px; width: 20%;">GPX FILE NAME</th>
+                <th style="border: 1px solid #000; padding: 10px; width: 20%;">FARM LOCATION</th>
+                <th style="border: 1px solid #000; padding: 10px; width: 15%;">CROP</th>
+                <th style="border: 1px solid #000; padding: 10px; width: 15%;">PLANTING SCHEDULE</th>
                 <th style="border: 1px solid #000; padding: 10px; width: 15%;">DECLARED<br/>SIZE</th>
                 <th style="border: 1px solid #000; padding: 10px; width: 15%;">VERIFIED<br/>SIZE</th>
               </tr>
@@ -432,6 +488,7 @@ export default function AdminDashboard() {
               ${reviewForm.parcels.map(p => `
               <tr>
                 <td style="border: 1px solid #000; padding: 8px;">${p.gpxFileName}</td>
+                <td style="border: 1px solid #000; padding: 8px;">${p.farmLocationAddress}</td>
                 <td style="border: 1px solid #000; padding: 8px;">${p.crop}</td>
                 <td style="border: 1px solid #000; padding: 8px;">${p.plantingSchedule}</td>
                 <td style="border: 1px solid #000; padding: 8px;">${p.declaredSize}</td>
@@ -440,6 +497,12 @@ export default function AdminDashboard() {
               `).join('')}
             </tbody>
           </table>
+
+          ${reviewForm.parcels.some(p => p.remarks && p.remarks.trim() !== '') ? `
+          <div style="font-size: 12px; margin-top: 10px; margin-bottom: 20px; font-style: italic;">
+            <strong>OFCAS Note:</strong> ${reviewForm.parcels.map(p => p.remarks).filter(Boolean).join(' | ')}
+          </div>
+          ` : ''}
 
           <div style="margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 14px;">
             <div style="font-family: serif; font-weight: bold;">FARMER'S COPY</div>
@@ -512,7 +575,7 @@ export default function AdminDashboard() {
       const link = document.createElement('a')
       link.href = previewImages.combined
 
-      const fullName = [selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name, selectedRecord.suffix].filter(Boolean).join(' ')
+      const fullName = formatName(selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name, selectedRecord.suffix)
       const dateIssued = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).replace(/,/g, '')
       link.download = `RSBSA_Stub_${fullName}_${dateIssued}.jpg`
       document.body.appendChild(link)
@@ -685,6 +748,7 @@ export default function AdminDashboard() {
                       <tr>
                         <th>Name</th>
                         <th>Email</th>
+                        <th>Contact No.</th>
                         <th>Region</th>
                         <th>Barangay</th>
                         <th>Submitted At</th>
@@ -694,8 +758,9 @@ export default function AdminDashboard() {
                     <tbody>
                       {records.map(r => (
                         <tr key={r.id}>
-                          <td>{[r.first_name, r.middle_initial, r.last_name, r.suffix].filter(Boolean).join(' ') || '-'}</td>
+                          <td>{formatName(r.first_name, r.middle_initial, r.last_name, r.suffix) || '-'}</td>
                           <td>{r.email || '-'}</td>
+                          <td>{r.contact_no || '-'}</td>
                           <td>{r.region || '-'}</td>
                           <td>{r.barangay || '-'}</td>
                           <td>{new Date(r.created_at).toLocaleString() || '-'}</td>
@@ -705,7 +770,7 @@ export default function AdminDashboard() {
                         </tr>
                       ))}
                       {records.length === 0 && (
-                        <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px' }}>No requests found in the database.</td></tr>
+                        <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px' }}>No requests found in the database.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -716,8 +781,52 @@ export default function AdminDashboard() {
         </main>
       </div>
 
+      {/* Verification Modal */}
+      {verificationModalOpen && selectedRecord && (
+        <div className="result-modal" role="dialog" aria-modal="true" onMouseDown={() => setVerificationModalOpen(false)}>
+          <div className="result-card" style={{ maxWidth: '500px', padding: '32px' }} onMouseDown={(e) => e.stopPropagation()}>
+            <div className="result-header" style={{ marginBottom: '24px' }}>
+              <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.25rem' }}>Verify Farmer Record</h3>
+              <button type="button" className="result-close" onClick={() => setVerificationModalOpen(false)}>×</button>
+            </div>
+            
+            {verificationStep === 'initial' ? (
+              <>
+                <p style={{ marginBottom: '24px', fontSize: '1rem', lineHeight: '1.5' }}>
+                  Does the requesting farmer (<strong>{formatName(selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name, selectedRecord.suffix)}</strong>) have a record in the database?
+                </p>
+                <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
+                  <button onClick={() => setVerificationStep('feedback')} className="btn btn-danger">No, they don't</button>
+                  <button onClick={handleVerificationYes} className="btn btn-primary">Yes, they do</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={{ marginBottom: '16px', fontSize: '0.95rem', lineHeight: '1.5' }}>
+                  Please write feedback explaining why their request cannot be processed. This will be emailed to <strong>{selectedRecord.email}</strong>, and the request will be deleted.
+                </p>
+                <textarea
+                  className="input"
+                  style={{ minHeight: '120px', resize: 'vertical', marginBottom: '24px', background: 'white' }}
+                  placeholder="Dear farmer, unfortunately we couldn't find your record..."
+                  value={feedbackText}
+                  onChange={e => setFeedbackText(e.target.value)}
+                  disabled={feedbackLoading}
+                />
+                <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
+                  <button onClick={() => setVerificationStep('initial')} className="btn btn-secondary" disabled={feedbackLoading}>Back</button>
+                  <button onClick={submitFeedback} className="btn btn-primary" disabled={feedbackLoading}>
+                    {feedbackLoading ? 'Sending...' : 'Send Feedback & Delete'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Review and Edit Modal */}
-      {selectedRecord && (
+      {selectedRecord && !verificationModalOpen && (
         <div className="result-modal" role="dialog" aria-modal="true" onMouseDown={() => setSelectedRecord(null)}>
           <form className="result-card" style={{ maxWidth: '650px', padding: '32px' }} onMouseDown={(e) => e.stopPropagation()} onSubmit={handleGenerate}>
             <div className="result-header" style={{ marginBottom: '24px' }}>
@@ -726,8 +835,9 @@ export default function AdminDashboard() {
             </div>
 
             <div className="result-summary" style={{ marginBottom: '24px', background: 'var(--color-green-50)', borderColor: 'var(--color-green-200)' }}>
-              <p style={{ margin: '4px 0' }}><strong>Name:</strong> {[selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name, selectedRecord.suffix].filter(Boolean).join(' ') || '-'}</p>
-              <p style={{ margin: '4px 0' }}><strong>Farm Location:</strong> {[selectedRecord.barangay, selectedRecord.city, selectedRecord.province, selectedRecord.region].filter(Boolean).join(', ') || '-'}</p>
+              <p style={{ margin: '4px 0' }}><strong>Name:</strong> {formatName(selectedRecord.first_name, selectedRecord.middle_initial, selectedRecord.last_name, selectedRecord.suffix) || '-'}</p>
+              <p style={{ margin: '4px 0' }}><strong>Contact No.:</strong> {selectedRecord.contact_no || '-'}</p>
+              <p style={{ margin: '4px 0' }}><strong>Residence Address:</strong> {[selectedRecord.barangay, selectedRecord.city, selectedRecord.province, selectedRecord.region].filter(Boolean).join(', ') || '-'}</p>
             </div>
 
             <div style={{ marginBottom: '24px' }}>
@@ -824,6 +934,10 @@ export default function AdminDashboard() {
                   <label className="label">
                     Parcel Name/Land Owner
                     <input type="text" id={`parcel-${index}-parcelName`} name="parcelName" value={parcel.parcelName} onChange={(e) => handleParcelChange(index, e)} className="input" style={{ background: 'white' }} required />
+                  </label>
+                  <label className="label">
+                    Farm Location Address
+                    <input type="text" id={`parcel-${index}-farmLocationAddress`} name="farmLocationAddress" value={parcel.farmLocationAddress} onChange={(e) => handleParcelChange(index, e)} className="input" style={{ background: 'white' }} required />
                   </label>
                   <label className="label">
                     Crop

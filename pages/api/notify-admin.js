@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { firstName, middleInitial, lastName, suffix, email, region, province, city, barangay } = req.body
+  const { firstName, middleInitial, lastName, suffix, email, contactNo, region, province, city, barangay } = req.body
 
   if (!firstName || !lastName || !email) {
     return res.status(400).json({ error: 'Missing required fields' })
@@ -23,13 +23,21 @@ export default async function handler(req, res) {
     })
 
     const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER || 'admin@example.com'
-    const name = [firstName, middleInitial, lastName, suffix].filter(Boolean).join(' ')
+    const formatName = (first, middle, last, suffix) => {
+      let parts = [];
+      if (last) parts.push(last);
+      let firstSuffix = [first, suffix].filter(Boolean).join(' ');
+      if (firstSuffix) parts.push(firstSuffix);
+      if (middle && middle !== 'N/A') parts.push(middle);
+      return parts.join(', ');
+    }
+    const name = formatName(firstName, middleInitial, lastName, suffix)
 
     const mailOptions = {
       from: process.env.SMTP_FROM || process.env.SMTP_USER || '"eRSBSA System" <noreply@ersbsa.gov.ph>',
       to: adminEmail,
       subject: `New RSBSA Request from ${name}`,
-      text: `A new RSBSA request has been submitted.\n\nDetails:\nName: ${name}\nEmail: ${email}\nLocation: ${barangay}, ${city}, ${province}, ${region}\n\nPlease review this request in the admin dashboard here: https://e-rsbsa.vercel.app/admin\n\nThank you,\neRSBSA System`,
+      text: `A new RSBSA request has been submitted.\n\nDetails:\nName: ${name}\nEmail: ${email}\nContact No.: ${contactNo || '-'}\nLocation: ${barangay}, ${city}, ${province}, ${region}\n\nPlease review this request in the admin dashboard here: https://e-rsbsa.vercel.app/admin\n\nThank you,\neRSBSA System`,
     }
 
     await transporter.sendMail(mailOptions)

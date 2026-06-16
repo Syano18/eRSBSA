@@ -64,7 +64,7 @@ export default function Home() {
 
       <main className="container">
         <section className="card">
-          <p className="card-subtitle">Enter full name and farm location address to submit your request</p>
+          <p className="card-subtitle">Enter full name and residence address to submit your request</p>
           <RequestForm key={formKey} onSearch={handleSearch} />
         </section>
       </main>

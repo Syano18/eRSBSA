@@ -6,6 +6,8 @@ export default function RequestForm({ onSearch }) {
   const [lastName, setLastName] = useState('')
   const [suffix, setSuffix] = useState('')
   const [email, setEmail] = useState('')
+  const [contactNo, setContactNo] = useState('')
+  const [isMINa, setIsMINa] = useState(false)
   
 
   const [region, setRegion] = useState('')
@@ -40,9 +42,7 @@ export default function RequestForm({ onSearch }) {
   const normalizeMiddleInitial = (value) => {
     let cleaned = value.trim().toUpperCase()
     if (!cleaned) return ''
-    if (!cleaned.endsWith('.')) {
-      cleaned += '.'
-    }
+    if (cleaned === 'N/A' || cleaned === 'N/A.') return 'N/A'
     return cleaned
   }
   
@@ -151,7 +151,8 @@ export default function RequestForm({ onSearch }) {
   const onLastNameFocus = () => { setLastName('') }
   const onSuffixFocus = () => { setSuffix('') }
   const onEmailFocus = () => { setEmail('') }
-  const onMiddleInitialFocus = () => { setMiddleInitial('') }
+  const onContactNoFocus = () => { setContactNo('') }
+  const onMiddleInitialFocus = () => { if (!isMINa) setMiddleInitial('') }
   const onBarangayFocus = () => { setBarangay(''); setShowDropdown(true) }
   const onRegionFocus = () => { setRegion(''); setShowRegionDropdown(true) }
   const onProvinceFocus = () => { setProvince(''); setShowProvinceDropdown(true) }
@@ -295,14 +296,19 @@ export default function RequestForm({ onSearch }) {
       lastName: lastName.trim().toUpperCase(),
       suffix: suffix.trim().toUpperCase(),
       email: email.trim(),
+      contactNo: contactNo.trim(),
       region: region.trim(),
       barangay: barangay.trim(),
       city: city.trim(),
       province: province.trim(),
     }
 
-    if (!payload.firstName || !payload.middleInitial || !payload.lastName || !payload.email || !payload.region || !payload.province || !payload.city || !payload.barangay) {
+    if (!payload.firstName || !payload.middleInitial || !payload.lastName || !payload.email || !payload.contactNo || !payload.region || !payload.province || !payload.city || !payload.barangay) {
       return alert('All fields are required. Please ensure no fields are left blank or contain only spaces.')
+    }
+
+    if (!/^09\d{9}$/.test(payload.contactNo)) {
+      return alert('Please enter a valid 11-digit Philippine mobile number starting with 09 (e.g., 09123456789).')
     }
 
     // Call the original search/save logic
@@ -334,16 +340,34 @@ export default function RequestForm({ onSearch }) {
           </label>
 
           <label className="label">
-            <span>M.I.<span style={{ color: 'red' }}>*</span></span>
+            <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Middle name<span style={{ color: 'red' }}>*</span></span>
+              <label style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontWeight: 'normal', margin: 0 }}>
+                <input 
+                  type="checkbox" 
+                  checked={isMINa} 
+                  onChange={(e) => {
+                    setIsMINa(e.target.checked)
+                    if (e.target.checked) {
+                      setMiddleInitial('N/A')
+                    } else {
+                      setMiddleInitial('')
+                    }
+                  }} 
+                />
+                N/A
+              </label>
+            </span>
             <input
               className="input"
               value={middleInitial}
-              onChange={(e) => setMiddleInitial(e.target.value.replace(/[^a-zA-Z.]/g, ''))}
+              onChange={(e) => setMiddleInitial(e.target.value.replace(/[^a-zA-Z. \/]/g, ''))}
               onFocus={onMiddleInitialFocus}
               onBlur={onMiddleInitialBlur}
-              placeholder="D."
-              maxLength={10}
+              placeholder="Dela Cruz"
+              maxLength={50}
               required
+              disabled={isMINa}
             />
           </label>
 
@@ -384,11 +408,26 @@ export default function RequestForm({ onSearch }) {
               required
             />
           </label>
+          <label className="label">
+            <span>Cellphone Number<span style={{ color: 'red' }}>*</span></span>
+            <input
+              type="tel"
+              className="input"
+              value={contactNo}
+              onChange={(e) => setContactNo(e.target.value.replace(/[^0-9]/g, ''))}
+              onFocus={onContactNoFocus}
+              placeholder="09123456789"
+              maxLength={11}
+              pattern="09\d{9}"
+              title="Must be an 11-digit Philippine mobile number starting with 09"
+              required
+            />
+          </label>
         </div>
       </div>
 
       <div className="panel">
-        <h4 className="panel-title">Farm Location Address</h4>
+        <h4 className="panel-title">Residence Address</h4>
         <div className="form-grid address-row">
           <label className="label">
             <span>Region<span style={{ color: 'red' }}>*</span></span>
