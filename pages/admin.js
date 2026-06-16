@@ -787,8 +787,8 @@ export default function AdminDashboard() {
 
       {/* Verification Modal */}
       {verificationModalOpen && selectedRecord && (
-        <div className="result-modal" role="dialog" aria-modal="true" onMouseDown={() => { setVerificationModalOpen(false); setSelectedRecord(null); }}>
-          <div className="result-card" style={{ maxWidth: '500px', padding: '32px' }} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="result-modal" role="dialog" aria-modal="true">
+          <div className="result-card" style={{ maxWidth: '500px', padding: '32px' }}>
             <div className="result-header" style={{ marginBottom: '24px' }}>
               <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.25rem' }}>Verify Farmer Record</h3>
               <button type="button" className="result-close" onClick={() => { setVerificationModalOpen(false); setSelectedRecord(null); }}>×</button>
@@ -831,8 +831,8 @@ export default function AdminDashboard() {
 
       {/* Review and Edit Modal */}
       {selectedRecord && !verificationModalOpen && (
-        <div className="result-modal" role="dialog" aria-modal="true" onMouseDown={() => setSelectedRecord(null)}>
-          <form className="result-card" style={{ maxWidth: '650px', padding: '32px' }} onMouseDown={(e) => e.stopPropagation()} onSubmit={handleGenerate}>
+        <div className="result-modal" role="dialog" aria-modal="true">
+          <form className="result-card" style={{ maxWidth: '650px', padding: '32px' }} onSubmit={handleGenerate}>
             <div className="result-header" style={{ marginBottom: '24px' }}>
               <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.25rem' }}>Review Request</h3>
               <button type="button" className="result-close" onClick={() => setSelectedRecord(null)}>×</button>
@@ -983,8 +983,8 @@ export default function AdminDashboard() {
 
       {/* Preview Modal */}
       {previewImages && (
-        <div className="result-modal" style={{ zIndex: 1050 }} role="dialog" aria-modal="true" onMouseDown={() => !isSending && setPreviewImages(null)}>
-          <div className="result-card" style={{ maxWidth: '850px', padding: '32px', textAlign: 'center' }} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="result-modal" style={{ zIndex: 1050 }} role="dialog" aria-modal="true">
+          <div className="result-card" style={{ maxWidth: '850px', padding: '32px', textAlign: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.25rem' }}>Stub Preview</h3>
               <button type="button" className="result-close" onClick={() => setPreviewImages(null)} disabled={isSending}>×</button>
@@ -1007,8 +1007,8 @@ export default function AdminDashboard() {
 
       {/* Notification Modal */}
       {notification && (
-        <div className="result-modal" style={{ zIndex: 1100 }} role="dialog" aria-modal="true" onMouseDown={() => { if (notification.onClose) notification.onClose(); setNotification(null); }}>
-          <div className="result-card" style={{ maxWidth: '400px', textAlign: 'center', padding: '32px' }} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="result-modal" style={{ zIndex: 1100 }} role="dialog" aria-modal="true">
+          <div className="result-card" style={{ maxWidth: '400px', textAlign: 'center', padding: '32px' }}>
             <div style={{ fontSize: '3rem', marginBottom: '16px' }}>
               {notification.type === 'success' ? '✅' : notification.type === 'error' ? '❌' : '⚠️'}
             </div>
