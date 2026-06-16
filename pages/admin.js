@@ -19,6 +19,7 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loginError, setLoginError] = useState(false)
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   const [selectedRecord, setSelectedRecord] = useState(null)
   const [reviewForm, setReviewForm] = useState({
@@ -100,6 +101,7 @@ export default function AdminDashboard() {
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoginError(false)
+    setIsLoggingIn(true)
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -122,6 +124,8 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Login error:', err)
       setLoginError(true)
+    } finally {
+      setIsLoggingIn(false)
     }
   }
 
@@ -686,8 +690,8 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                <button type="submit" style={{ width: '100%', padding: '14px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '12px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', marginTop: '8px', transition: 'background 0.2s, transform 0.1s' }} onMouseEnter={(e) => e.target.style.background = '#15803d'} onMouseLeave={(e) => e.target.style.background = '#16a34a'} onMouseDown={(e) => e.target.style.transform = 'scale(0.98)'} onMouseUp={(e) => e.target.style.transform = 'scale(1)'}>
-                  Sign In
+                <button type="submit" disabled={isLoggingIn} style={{ width: '100%', padding: '14px', background: isLoggingIn ? '#86efac' : '#16a34a', color: 'white', border: 'none', borderRadius: '12px', fontSize: '1rem', fontWeight: '600', cursor: isLoggingIn ? 'not-allowed' : 'pointer', marginTop: '8px', transition: 'background 0.2s, transform 0.1s' }} onMouseEnter={(e) => { if(!isLoggingIn) e.target.style.background = '#15803d' }} onMouseLeave={(e) => { if(!isLoggingIn) e.target.style.background = '#16a34a' }} onMouseDown={(e) => { if(!isLoggingIn) e.target.style.transform = 'scale(0.98)' }} onMouseUp={(e) => { if(!isLoggingIn) e.target.style.transform = 'scale(1)' }}>
+                  {isLoggingIn ? 'Signing In...' : 'Sign In'}
                 </button>
               </form>
             </div>
