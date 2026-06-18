@@ -530,12 +530,12 @@ export default function AdminDashboard() {
       // Merge farmer element into ocas element for combined canvas
       const ocasBorderedDiv = ocasElement.firstElementChild
       const farmerBorderedDiv = farmerElement.firstElementChild
-      
+
       const sep = document.createElement('div')
       sep.style.borderBottom = '1px solid #000'
       sep.style.margin = '15px -40px 15px -40px'
       ocasBorderedDiv.appendChild(sep)
-      
+
       while (farmerBorderedDiv.firstChild) {
         ocasBorderedDiv.appendChild(farmerBorderedDiv.firstChild)
       }
@@ -690,13 +690,13 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                <button type="submit" disabled={isLoggingIn} style={{ width: '100%', padding: '14px', background: isLoggingIn ? '#86efac' : '#16a34a', color: 'white', border: 'none', borderRadius: '12px', fontSize: '1rem', fontWeight: '600', cursor: isLoggingIn ? 'not-allowed' : 'pointer', marginTop: '8px', transition: 'background 0.2s, transform 0.1s' }} onMouseEnter={(e) => { if(!isLoggingIn) e.target.style.background = '#15803d' }} onMouseLeave={(e) => { if(!isLoggingIn) e.target.style.background = '#16a34a' }} onMouseDown={(e) => { if(!isLoggingIn) e.target.style.transform = 'scale(0.98)' }} onMouseUp={(e) => { if(!isLoggingIn) e.target.style.transform = 'scale(1)' }}>
+                <button type="submit" disabled={isLoggingIn} style={{ width: '100%', padding: '14px', background: isLoggingIn ? '#86efac' : '#16a34a', color: 'white', border: 'none', borderRadius: '12px', fontSize: '1rem', fontWeight: '600', cursor: isLoggingIn ? 'not-allowed' : 'pointer', marginTop: '8px', transition: 'background 0.2s, transform 0.1s' }} onMouseEnter={(e) => { if (!isLoggingIn) e.target.style.background = '#15803d' }} onMouseLeave={(e) => { if (!isLoggingIn) e.target.style.background = '#16a34a' }} onMouseDown={(e) => { if (!isLoggingIn) e.target.style.transform = 'scale(0.98)' }} onMouseUp={(e) => { if (!isLoggingIn) e.target.style.transform = 'scale(1)' }}>
                   {isLoggingIn ? 'Signing In...' : 'Sign In'}
                 </button>
               </form>
             </div>
             <div style={{ background: '#f8fafc', padding: '20px', textAlign: 'center', borderTop: '1px solid #f1f5f9' }}>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}> &copy; 2026 Office for Agricultural Services</p>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}> &copy; 2026 Office for the City Agricultural Services</p>
               <p style={{ margin: 0, fontSize: '0.85rem', color: '#0c0c0cff' }}>TechCraft by Chano | <a href="mailto:officialchano18@gmail.com">officialchano18@gmail.com</a></p>
             </div>
           </div>
@@ -740,10 +740,10 @@ export default function AdminDashboard() {
           </button>
         </aside>
 
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ padding: '32px 40px', overflowY: 'auto', flex: 1 }}>
-            <div className="card" style={{ width: '100%', maxWidth: '100%', padding: '0', overflow: 'hidden' }}>
-              <div style={{ width: '100%', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%' }}>
+          <div style={{ padding: '32px', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%' }}>
+            <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 6px 18px rgba(15,23,42,0.06)', display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', width: '100%' }}>
+              <div style={{ overflow: 'auto', flex: 1, width: '100%' }}>
                 {loading ? (
                   <p style={{ textAlign: 'center', padding: '40px' }}>Loading requests...</p>
                 ) : (
@@ -793,7 +793,7 @@ export default function AdminDashboard() {
               <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.25rem' }}>Verify Farmer Record</h3>
               <button type="button" className="result-close" onClick={() => { setVerificationModalOpen(false); setSelectedRecord(null); }}>×</button>
             </div>
-            
+
             {verificationStep === 'initial' ? (
               <>
                 <p style={{ marginBottom: '24px', fontSize: '1rem', lineHeight: '1.5' }}>
@@ -820,7 +820,7 @@ export default function AdminDashboard() {
                 <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
                   <button onClick={() => setVerificationStep('initial')} className="btn btn-secondary" disabled={feedbackLoading}>Back</button>
                   <button onClick={submitFeedback} className="btn btn-primary" disabled={feedbackLoading}>
-                    {feedbackLoading ? 'Sending...' : 'Send Feedback & Delete'}
+                    {feedbackLoading ? 'Sending...' : 'Send Feedback'}
                   </button>
                 </div>
               </>

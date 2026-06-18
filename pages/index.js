@@ -56,7 +56,7 @@ export default function Home() {
               <img src="/DA.png" alt="DA logo" className="logo" />
             </div>
             <div className="hero-text">
-              <h1 className="title">Office for Agricultural Services</h1>
+              <h1 className="title">Online Field Assistant <br />Logbook Request System</h1>
             </div>
           </header>
         </div>
@@ -103,7 +103,7 @@ export default function Home() {
 
       <footer className="footer">
         <div className="footer-content">
-          <p>&copy; 2026 Office for Agricultural Services</p>
+          <p>&copy; 2026 Office for the City Agricultural Services</p>
           <p><strong>TechCraft by Chano</strong> | <a href="mailto:officialchano18@gmail.com">officialchano18@gmail.com</a></p>
         </div>
       </footer>

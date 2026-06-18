@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
   const token = authHeader.split(' ')[1]
   const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-development-only-12345'
-  
+
   try {
     const jwt = (await import('jsonwebtoken')).default
     jwt.verify(token, JWT_SECRET)
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       from: process.env.SMTP_FROM || process.env.SMTP_USER || '"eRSBSA Admin" <noreply@ersbsa.gov.ph>',
       to: email,
       subject: `RSBSA Stub`,
-      text: `Good day,\n\nYour RSBSA Stub is now verified and ready for download. Please print it out.\n\nThank you,\nOffice for Agricultural Services - City of Tabuk`,
+      text: `Good day,\n\nYour RSBSA Stub is now verified and ready for download. Please print it out.\n\nThank you,\nOffice for the City Agricultural Services`,
       attachments: [{ filename: `RSBSA_Stub.jpg`, content: buffer, contentType: 'image/jpeg' }]
     }
 

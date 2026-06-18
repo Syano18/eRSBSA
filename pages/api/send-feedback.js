@@ -13,7 +13,7 @@ export default async function handler(req, res) {
 
   const token = authHeader.split(' ')[1]
   const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-development-only-12345'
-  
+
   try {
     const jwt = (await import('jsonwebtoken')).default
     jwt.verify(token, JWT_SECRET)
@@ -28,6 +28,21 @@ export default async function handler(req, res) {
   }
 
   try {
+    const client = createClient({
+      url: process.env.TURSO_DB_URL || 'file:./local.db',
+      authToken: process.env.TURSO_API_TOKEN,
+    })
+
+    // Check if the request exists
+    const result = await client.execute({
+      sql: 'SELECT * FROM Requests WHERE id = ?',
+      args: [id]
+    })
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Request not found in the database.' })
+    }
+
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: process.env.SMTP_PORT || 587,
@@ -41,19 +56,14 @@ export default async function handler(req, res) {
     const mailOptions = {
       from: process.env.SMTP_FROM || process.env.SMTP_USER || '"eRSBSA Admin" <noreply@ersbsa.gov.ph>',
       to: email,
-      subject: `Update on your RSBSA Request`,
-      text: `Good day ${name},\n\nRegarding your recent request:\n\n${feedback}\n\nThank you,\nOffice for Agricultural Services - City of Tabuk`,
+      subject: `Feedback on your RSBSA Request`,
+      text: `Good day ${name},\n\nRegarding your recent request:\n\n${feedback}\n\nThank you,\nOffice for the City Agricultural Services`,
     }
 
     // Send email
     await transporter.sendMail(mailOptions)
 
     // Delete request from database
-    const client = createClient({
-      url: process.env.TURSO_DATABASE_URL || 'file:./local.db',
-      authToken: process.env.TURSO_AUTH_TOKEN,
-    })
-
     await client.execute({
       sql: 'DELETE FROM Requests WHERE id = ?',
       args: [id]

@@ -311,6 +311,26 @@ export default function RequestForm({ onSearch }) {
       return alert('Please enter a valid 11-digit Philippine mobile number starting with 09 (e.g., 09123456789).')
     }
 
+    const isRegionValid = regionsData.some(r => r.name.toLowerCase() === payload.region.toLowerCase() || (r.regionName && r.regionName.toLowerCase() === payload.region.toLowerCase()))
+    if (!isRegionValid) {
+      return alert('Please select a valid Region from the dropdown.')
+    }
+
+    const isProvinceValid = provincesData.some(p => p.name.toLowerCase() === payload.province.toLowerCase())
+    if (!isProvinceValid) {
+      return alert('Please select a valid Province from the dropdown.')
+    }
+
+    const isCityValid = citiesData.some(c => c.name.toLowerCase() === payload.city.toLowerCase())
+    if (!isCityValid) {
+      return alert('Please select a valid City / Municipality from the dropdown.')
+    }
+
+    const isBarangayValid = barangaysData.some(b => b.name.toLowerCase() === payload.barangay.toLowerCase())
+    if (!isBarangayValid) {
+      return alert('Please select a valid Barangay from the dropdown.')
+    }
+
     // Call the original search/save logic
     onSearch(payload)
 
