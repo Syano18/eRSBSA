@@ -57,7 +57,7 @@ export default function RequestForm({ onSearch }) {
   }, [])
 
   useEffect(() => {
-    const reg = regionsData.find(r => r.name === region || r.regionName === region)
+    const reg = regionsData.find(r => r.name === region)
     if (reg) {
       if (reg.code !== regionCode) {
         setRegionCode(reg.code)
@@ -311,22 +311,22 @@ export default function RequestForm({ onSearch }) {
       return alert('Please enter a valid 11-digit Philippine mobile number starting with 09 (e.g., 09123456789).')
     }
 
-    const isRegionValid = regionsData.some(r => r.name.toLowerCase() === payload.region.toLowerCase() || (r.regionName && r.regionName.toLowerCase() === payload.region.toLowerCase()))
+    const isRegionValid = regionsData.some(r => r.name === payload.region)
     if (!isRegionValid) {
       return alert('Please select a valid Region from the dropdown.')
     }
 
-    const isProvinceValid = provincesData.some(p => p.name.toLowerCase() === payload.province.toLowerCase())
+    const isProvinceValid = provincesData.some(p => p.name === payload.province)
     if (!isProvinceValid) {
       return alert('Please select a valid Province from the dropdown.')
     }
 
-    const isCityValid = citiesData.some(c => c.name.toLowerCase() === payload.city.toLowerCase())
+    const isCityValid = citiesData.some(c => c.name === payload.city)
     if (!isCityValid) {
       return alert('Please select a valid City / Municipality from the dropdown.')
     }
 
-    const isBarangayValid = barangaysData.some(b => b.name.toLowerCase() === payload.barangay.toLowerCase())
+    const isBarangayValid = barangaysData.some(b => b.name === payload.barangay)
     if (!isBarangayValid) {
       return alert('Please select a valid Barangay from the dropdown.')
     }

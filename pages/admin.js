@@ -711,7 +711,7 @@ export default function AdminDashboard() {
         <title>Admin Dashboard - eRSBSA</title>
       </Head>
 
-      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--color-green-50)' }}>
+      <div style={{ display: 'flex', height: '100vh', background: 'var(--color-green-50)' }}>
         {/* Sidebar */}
         <aside style={{ width: '260px', background: 'white', borderRight: '1px solid var(--muted)', display: 'flex', flexDirection: 'column', flexShrink: 0, padding: '24px' }}>
           <div className="logo-row" style={{ marginBottom: '24px' }}>
