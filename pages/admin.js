@@ -26,7 +26,6 @@ export default function AdminDashboard() {
     refNo: '',
     parcels: [{
       gpxFileName: '',
-      landTenure: '',
       parcelName: '',
       crop: '',
       plantingSchedule: '',
@@ -46,24 +45,7 @@ export default function AdminDashboard() {
   const [feedbackLoading, setFeedbackLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
 
-  const [activeDropdownIndex, setActiveDropdownIndex] = useState(null)
-  const [dropdownHighlightIndex, setDropdownHighlightIndex] = useState(-1)
-  const dropdownRef = useRef(null)
-  const landTenureOptions = ['Registered Owner', 'Tenant', 'Mortgage', 'Lessee']
 
-  useEffect(() => {
-    const handleOutside = (e) => {
-      if (activeDropdownIndex !== null && dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setActiveDropdownIndex(null)
-      }
-    }
-    document.addEventListener('mousedown', handleOutside)
-    document.addEventListener('touchstart', handleOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleOutside)
-      document.removeEventListener('touchstart', handleOutside)
-    }
-  }, [activeDropdownIndex])
 
   useEffect(() => {
     // Check for stored token on initial load
@@ -149,7 +131,6 @@ export default function AdminDashboard() {
       refNo: '',
       parcels: [{
         gpxFileName: '',
-        landTenure: '',
         parcelName: '',
         farmLocationAddress: '',
         crop: '',
@@ -225,7 +206,7 @@ export default function AdminDashboard() {
   const addParcel = () => {
     const lastIndex = reviewForm.parcels.length - 1
 
-    const requiredFields = ['gpxFileName', 'landTenure', 'parcelName', 'farmLocationAddress', 'crop', 'plantingSchedule', 'declaredSize', 'verifiedSize']
+    const requiredFields = ['gpxFileName', 'parcelName', 'farmLocationAddress', 'crop', 'plantingSchedule', 'declaredSize', 'verifiedSize']
     for (const field of requiredFields) {
       const el = document.getElementById(`parcel-${lastIndex}-${field}`)
       if (el && !el.checkValidity()) {
@@ -235,7 +216,7 @@ export default function AdminDashboard() {
     }
     setReviewForm(prev => ({
       ...prev,
-      parcels: [...prev.parcels, { gpxFileName: '', landTenure: '', parcelName: '', farmLocationAddress: '', crop: '', plantingSchedule: '', declaredSize: '', verifiedSize: '', remarks: '' }]
+      parcels: [...prev.parcels, { gpxFileName: '', parcelName: '', farmLocationAddress: '', crop: '', plantingSchedule: '', declaredSize: '', verifiedSize: '', remarks: '' }]
     }))
   }
 
@@ -319,7 +300,7 @@ export default function AdminDashboard() {
                 ${reviewForm.parcels.map(p => `
                 <tr>
                   <td style="border: 1px solid #000; padding: 6px;">${p.gpxFileName}</td>
-                  <td style="border: 1px solid #000; padding: 6px;">${p.landTenure}</td>
+                  <td style="border: 1px solid #000; padding: 6px;"></td>
                   <td style="border: 1px solid #000; padding: 6px;">${p.parcelName}</td>
                   <td style="border: 1px solid #000; padding: 6px;">${p.crop}</td>
                   <td style="border: 1px solid #000; padding: 6px;">${p.declaredSize}</td>
@@ -846,8 +827,8 @@ export default function AdminDashboard() {
 
             <div style={{ marginBottom: '24px' }}>
               <label className="label">
-                RSBSA Reference No.:
-                <input type="text" id="refNo" name="refNo" value={reviewForm.refNo} onChange={handleReviewChange} className="input" required />
+                RSBSA Reference No. (Optional):
+                <input type="text" id="refNo" name="refNo" value={reviewForm.refNo} onChange={handleReviewChange} className="input" />
               </label>
             </div>
 
@@ -864,77 +845,7 @@ export default function AdminDashboard() {
                     GPX File name
                     <input type="text" id={`parcel-${index}-gpxFileName`} name="gpxFileName" value={parcel.gpxFileName} onChange={(e) => handleParcelChange(index, e)} className="input" style={{ background: 'white' }} required />
                   </label>
-                  <label className="label">
-                    Land Tenure
-                    <div className="select-wrapper" ref={activeDropdownIndex === index ? dropdownRef : null}>
-                      <input
-                        type="text"
-                        id={`parcel-${index}-landTenure`}
-                        name="landTenure"
-                        value={parcel.landTenure}
-                        onChange={(e) => {
-                          handleParcelChange(index, e)
-                          setActiveDropdownIndex(index)
-                          setDropdownHighlightIndex(-1)
-                        }}
-                        onFocus={() => {
-                          setActiveDropdownIndex(index)
-                          setDropdownHighlightIndex(-1)
-                          handleParcelChange(index, { target: { name: 'landTenure', value: '' } })
-                        }}
-                        onKeyDown={(e) => {
-                          if (activeDropdownIndex !== index) return
-                          const filtered = landTenureOptions.filter(o => o.toLowerCase().includes((parcel.landTenure || '').toLowerCase()))
-                          if (e.key === 'ArrowDown') {
-                            e.preventDefault()
-                            setDropdownHighlightIndex(i => Math.min(i + 1, filtered.length - 1))
-                          } else if (e.key === 'ArrowUp') {
-                            e.preventDefault()
-                            setDropdownHighlightIndex(i => Math.max(i - 1, 0))
-                          } else if (e.key === 'Enter') {
-                            e.preventDefault()
-                            if (dropdownHighlightIndex >= 0 && dropdownHighlightIndex < filtered.length) {
-                              handleParcelChange(index, { target: { name: 'landTenure', value: filtered[dropdownHighlightIndex] } })
-                              setActiveDropdownIndex(null)
-                            }
-                          } else if (e.key === 'Escape') {
-                            setActiveDropdownIndex(null)
-                          }
-                        }}
-                        className="input"
-                        style={{ background: 'white' }}
-                        placeholder="Select or search..."
-                        required
-                        autoComplete="off"
-                        aria-autocomplete="list"
-                        aria-haspopup="true"
-                      />
-                      {activeDropdownIndex === index && (
-                        <ul className="dropdown-list" role="listbox" style={{ zIndex: 10 }}>
-                          {(() => {
-                            const filtered = landTenureOptions.filter(o => o.toLowerCase().includes((parcel.landTenure || '').toLowerCase()))
-                            if (filtered.length === 0) return <li className="dropdown-item">No results</li>
-                            return filtered.map((o, idx) => (
-                              <li
-                                key={o}
-                                role="option"
-                                aria-selected={dropdownHighlightIndex === idx}
-                                className={`dropdown-item ${dropdownHighlightIndex === idx ? 'highlight' : ''}`}
-                                onMouseDown={(ev) => {
-                                  ev.preventDefault()
-                                  handleParcelChange(index, { target: { name: 'landTenure', value: o } })
-                                  setActiveDropdownIndex(null)
-                                }}
-                                onMouseEnter={() => setDropdownHighlightIndex(idx)}
-                              >
-                                {o}
-                              </li>
-                            ))
-                          })()}
-                        </ul>
-                      )}
-                    </div>
-                  </label>
+
                   <label className="label">
                     Parcel Name/Land Owner
                     <input type="text" id={`parcel-${index}-parcelName`} name="parcelName" value={parcel.parcelName} onChange={(e) => handleParcelChange(index, e)} className="input" style={{ background: 'white' }} required />
